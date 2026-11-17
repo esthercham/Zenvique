@@ -4,24 +4,247 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Zenvique System</title>
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #f5f7fb;
-      color: #1f2937;
-      text-align: center;
-    }
-    h1 { font-size: clamp(1.6rem, 5vw, 2.6rem); margin: 0; }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </head>
 <body>
-  <h1>Zenvique System — coming soon</h1>
+
+  <!-- Loading -->
+  <div id="loading" class="center"><p class="muted">Loading…</p></div>
+
+  <!-- Logged out: log in / create account / forgot password -->
+  <div id="authView" class="center hidden">
+    <div class="card narrow">
+      <p class="brand">Zenvique System</p>
+      <p class="sub">Sales, commission &amp; stock</p>
+
+      <div class="tabs" id="tabs">
+        <button type="button" data-tab="login" class="active">Log in</button>
+        <button type="button" data-tab="signup">Create account</button>
+      </div>
+
+      <form id="loginForm">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" autocomplete="email" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+        <button class="full" type="submit">Log in</button>
+        <p style="margin:14px 0 0;text-align:center">
+          <button type="button" class="link" id="forgotLink">Forgot password?</button>
+        </p>
+      </form>
+
+      <form id="signupForm" class="hidden">
+        <label for="signupName">Full name</label>
+        <input id="signupName" type="text" autocomplete="name" required>
+        <label for="signupEmail">Email</label>
+        <input id="signupEmail" type="email" autocomplete="email" required>
+        <label for="signupPassword">Password <span class="muted">(at least 6 characters)</span></label>
+        <input id="signupPassword" type="password" autocomplete="new-password" minlength="6" required>
+        <button class="full" type="submit">Create account</button>
+        <p class="muted" style="font-size:.85rem;margin:12px 0 0">
+          New accounts start as Staff. The owner sets your role and outlet.
+        </p>
+      </form>
+
+      <form id="forgotForm" class="hidden">
+        <p class="muted" style="margin:8px 0 0">Enter your email and we'll send you a link to set a new password.</p>
+        <label for="forgotEmail">Email</label>
+        <input id="forgotEmail" type="email" autocomplete="email" required>
+        <button class="full" type="submit">Send reset link</button>
+        <p style="margin:14px 0 0;text-align:center">
+          <button type="button" class="link" id="backToLogin">Back to log in</button>
+        </p>
+      </form>
+
+      <div id="authMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- Setting a new password (after clicking the email link) -->
+  <div id="resetView" class="center hidden">
+    <div class="card narrow">
+      <p class="brand">Set a new password</p>
+      <form id="resetForm">
+        <label for="newPassword">New password <span class="muted">(at least 6 characters)</span></label>
+        <input id="newPassword" type="password" autocomplete="new-password" minlength="6" required>
+        <button class="full" type="submit">Save new password</button>
+      </form>
+      <div id="resetMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- Logged in: home -->
+  <div id="homeView" class="wrap hidden">
+    <div class="topbar">
+      <div>
+        <p class="brand" style="margin:0">Zenvique System</p>
+        <span class="muted" id="whoLine"></span>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 4px" id="welcome"></h2>
+      <p style="margin:0">
+        <span class="badge" id="roleBadge"></span>
+        <span class="muted" id="outletLine"></span>
+      </p>
+      <div id="homeMsg" class="msg"></div>
+
+      <h3 style="margin:24px 0 0">Your screens</h3>
+      <p class="muted" style="margin:4px 0 0">These will be switched on one by one as we build them.</p>
+      <ul class="menu" id="menu"></ul>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const views = ['loading', 'authView', 'resetView', 'homeView'];
+  function show(view) { views.forEach(v => $(v).classList.toggle('hidden', v !== view)); }
+
+  // Screens each role will get (from SPEC.md, section D)
+  const SCREENS = [
+    { name: 'New Sale',               note: 'Key in a sale',                          roles: ['staff','manager','owner'] },
+    { name: 'My Sales & Commission',  note: 'This month, my own share',               roles: ['staff','manager','owner'] },
+    { name: 'Outlet Dashboard',       note: 'Sales, staff, lead sources',             roles: ['manager','owner'] },
+    { name: 'Review List',            note: 'Needs review & pending approval',        roles: ['manager','owner'] },
+    { name: 'Stock',                  note: 'Outlet stock & low stock',               roles: ['manager','owner'] },
+    { name: 'Owner Dashboard',        note: 'Compare all outlets',                    roles: ['owner'] },
+    { name: 'HQ Stock & Transfers',   note: 'Move stock from HQ',                     roles: ['owner'] },
+    { name: 'Settings',               note: 'Outlets, items, commission %, rules',    roles: ['owner'] },
+    { name: 'Users & Roles',          note: 'Set role, outlet, active',               roles: ['owner'] },
+  ];
+
+  // ---------- Tabs ----------
+  function setTab(tab) {
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    $('tabs').classList.toggle('hidden', tab === 'forgot');
+    $('loginForm').classList.toggle('hidden', tab !== 'login');
+    $('signupForm').classList.toggle('hidden', tab !== 'signup');
+    $('forgotForm').classList.toggle('hidden', tab !== 'forgot');
+    App.showMsg($('authMsg'), '');
+  }
+  document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+  $('forgotLink').addEventListener('click', () => setTab('forgot'));
+  $('backToLogin').addEventListener('click', () => setTab('login'));
+
+  // Disable a form's button while working
+  async function busy(form, fn) {
+    const btn = form.querySelector('button[type=submit]');
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Please wait…';
+    try { await fn(); } finally { btn.disabled = false; btn.textContent = label; }
+  }
+
+  // ---------- Log in ----------
+  $('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    busy(e.target, async () => {
+      const { error } = await sb.auth.signInWithPassword({
+        email: $('loginEmail').value.trim(),
+        password: $('loginPassword').value,
+      });
+      if (error) return App.showMsg($('authMsg'), App.friendlyError(error), 'error');
+      await showHome();
+    });
+  });
+
+  // ---------- Create account ----------
+  $('signupForm').addEventListener('submit', e => {
+    e.preventDefault();
+    busy(e.target, async () => {
+      const { data, error } = await sb.auth.signUp({
+        email: $('signupEmail').value.trim(),
+        password: $('signupPassword').value,
+        options: {
+          data: { full_name: $('signupName').value.trim() },
+          emailRedirectTo: window.location.origin + '/index.html',
+        },
+      });
+      if (error) return App.showMsg($('authMsg'), App.friendlyError(error), 'error');
+      if (data.session) return showHome();
+      e.target.reset();
+      App.showMsg($('authMsg'),
+        'Account created! Check your email and click the confirmation link, then log in here.', 'ok');
+    });
+  });
+
+  // ---------- Forgot password ----------
+  $('forgotForm').addEventListener('submit', e => {
+    e.preventDefault();
+    busy(e.target, async () => {
+      const { error } = await sb.auth.resetPasswordForEmail($('forgotEmail').value.trim(), {
+        redirectTo: window.location.origin + '/index.html',
+      });
+      if (error) return App.showMsg($('authMsg'), App.friendlyError(error), 'error');
+      App.showMsg($('authMsg'), 'If that email has an account, a reset link is on its way. Check your inbox.', 'ok');
+    });
+  });
+
+  // ---------- Set new password ----------
+  $('resetForm').addEventListener('submit', e => {
+    e.preventDefault();
+    busy(e.target, async () => {
+      const { error } = await sb.auth.updateUser({ password: $('newPassword').value });
+      if (error) return App.showMsg($('resetMsg'), App.friendlyError(error), 'error');
+      App.showMsg($('resetMsg'), 'Password saved. Taking you in…', 'ok');
+      setTimeout(showHome, 1200);
+    });
+  });
+
+  // ---------- Log out ----------
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  // ---------- Home ----------
+  async function showHome() {
+    let profile;
+    try { profile = await App.getProfile(); }
+    catch (err) {
+      show('authView');
+      return App.showMsg($('authMsg'), App.friendlyError(err), 'error');
+    }
+    if (!profile) { show('authView'); return; }
+
+    $('welcome').textContent = 'Welcome, ' + (profile.full_name || profile.email);
+    $('whoLine').textContent = profile.email;
+    $('roleBadge').textContent = App.roleLabel(profile.role);
+    $('outletLine').textContent = profile.role === 'owner'
+      ? ' · All outlets'
+      : (profile.outlet ? ' · ' + profile.outlet : '');
+
+    if (!profile.active) {
+      App.showMsg($('homeMsg'), 'Your account is switched off. Please contact the owner.', 'error');
+      $('menu').innerHTML = '';
+    } else {
+      if (profile.role !== 'owner' && !profile.outlet) {
+        App.showMsg($('homeMsg'), 'You have no outlet yet. Please ask the owner to assign your outlet.', 'info');
+      } else {
+        App.showMsg($('homeMsg'), '');
+      }
+      $('menu').innerHTML = SCREENS
+        .filter(s => s.roles.includes(profile.role))
+        .map(s => `<li class="soon"><strong>${App.esc(s.name)}</strong><small>${App.esc(s.note)} · coming soon</small></li>`)
+        .join('');
+    }
+    show('homeView');
+  }
+
+  // ---------- Start ----------
+  sb.auth.onAuthStateChange(event => {
+    if (event === 'PASSWORD_RECOVERY') show('resetView');
+  });
+
+  (async () => {
+    // Give the email-link login (if any) a moment to finish
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) { show('resetView'); return; }
+    const { data: { session } } = await sb.auth.getSession();
+    if (hash.includes('access_token')) history.replaceState(null, '', window.location.pathname);
+    if (session) await showHome(); else show('authView');
+  })();
+</script>
 </body>
 </html>
