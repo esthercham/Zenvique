@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Sale · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 16px; margin: 16px 0 0; }
+    legend { font-weight: 700; padding: 0 6px; }
+    .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+    .grid3 { display: grid; gap: 0 12px; grid-template-columns: 2fr 1fr 1fr; }
+    @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+    .req::after { content: " *"; color: var(--danger); }
+    .totalbox { margin-top: 16px; padding: 14px 16px; border-radius: 10px; background: var(--bg);
+                display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .totalbox .big { font-size: 1.5rem; font-weight: 700; }
+    .radio { display: flex; gap: 16px; margin-top: 4px; }
+    .radio label { display: flex; align-items: center; gap: 6px; font-weight: 500; margin: 6px 0; }
+    .radio input { width: 18px; height: 18px; }
+    .static { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">New Sale</h1>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div id="blocked" class="card hidden"></div>
+
+    <form id="saleForm" class="card hidden" novalidate>
+      <p class="muted" style="margin:0">Fields with <span style="color:var(--danger)">*</span> are required. Total and commission are worked out automatically.</p>
+
+      <fieldset>
+        <legend>When &amp; where</legend>
+        <div class="grid2">
+          <div>
+            <label for="saleDate" class="req">Date</label>
+            <input id="saleDate" type="date" required>
+          </div>
+          <div>
+            <label for="outlet" class="req">Outlet</label>
+            <select id="outlet" required></select>
+            <div id="outletStatic" class="static hidden"></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Customer</legend>
+        <div class="grid2">
+          <div>
+            <label for="customerName" class="req">Customer name</label>
+            <input id="customerName" type="text" autocomplete="off" required>
+          </div>
+          <div>
+            <label for="phone">Phone</label>
+            <input id="phone" type="tel" inputmode="tel" placeholder="012-345 6789" autocomplete="off">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Staff on this sale</legend>
+        <p class="muted" style="margin:8px 0 0;font-size:.88rem">These can be three different people.</p>
+        <div class="grid3" style="grid-template-columns:1fr 1fr 1fr">
+          <div>
+            <label for="consultant">Consultant / Client Owner</label>
+            <select id="consultant"></select>
+          </div>
+          <div>
+            <label for="serviceStaff">Service Staff</label>
+            <select id="serviceStaff"></select>
+          </div>
+          <div>
+            <label for="productSeller">Product Seller</label>
+            <select id="productSeller"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>What was sold</legend>
+        <div class="grid3">
+          <div>
+            <label for="treatment">Treatment</label>
+            <select id="treatment"></select>
+          </div>
+          <div></div>
+          <div>
+            <label for="treatmentAmount">Treatment RM</label>
+            <input id="treatmentAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+        <div class="grid3">
+          <div>
+            <label for="product">Product</label>
+            <select id="product"></select>
+          </div>
+          <div>
+            <label for="productQty">Qty</label>
+            <input id="productQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+          </div>
+          <div>
+            <label for="productAmount">Product RM</label>
+            <input id="productAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+        <div class="grid3">
+          <div>
+            <label for="service">Service</label>
+            <select id="service"></select>
+          </div>
+          <div></div>
+          <div>
+            <label for="serviceAmount">Service RM</label>
+            <input id="serviceAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+        <div class="grid3">
+          <div></div><div></div>
+          <div>
+            <label for="discount">Discount / Promo RM</label>
+            <input id="discount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>How they found us</legend>
+        <div class="grid2">
+          <div>
+            <label for="leadSource">Lead source</label>
+            <select id="leadSource"></select>
+          </div>
+          <div>
+            <label for="campaign">Campaign name</label>
+            <input id="campaign" type="text" autocomplete="off" placeholder="e.g. Nov Glow Promo">
+          </div>
+          <div>
+            <label for="referredBy">Referral source / Referred by</label>
+            <input id="referredBy" type="text" autocomplete="off" placeholder="e.g. customer's name">
+          </div>
+          <div>
+            <label>Voucher used?</label>
+            <div class="radio">
+              <label><input type="radio" name="voucher" value="no" checked> No</label>
+              <label><input type="radio" name="voucher" value="yes"> Yes</label>
+            </div>
+          </div>
+          <div id="voucherCodeBox" class="hidden">
+            <label for="voucherCode">Voucher type / code</label>
+            <input id="voucherCode" type="text" autocomplete="off" placeholder="e.g. NEWYEAR10">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Payment</legend>
+        <div class="grid2">
+          <div>
+            <label for="paymentMethod">Payment method</label>
+            <select id="paymentMethod"></select>
+          </div>
+          <div>
+            <label for="notes">Notes</label>
+            <input id="notes" type="text" autocomplete="off">
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="totalbox">
+        <span>Total sale</span>
+        <span class="big" id="totalShow">RM 0.00</span>
+      </div>
+      <div id="flagMsg" class="msg"></div>
+
+      <button type="submit" class="full" id="saveBtn">Save sale</button>
+      <div id="formMsg" class="msg"></div>
+    </form>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let me, settings = {}, people = [];
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  const num = id => {
+    const v = parseFloat($(id).value);
+    return isNaN(v) ? 0 : Math.round(v * 100) / 100;
+  };
+  const todayKL = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
+
+  function fillSelect(el, items, emptyLabel) {
+    el.innerHTML = (emptyLabel !== null ? `<option value="">${App.esc(emptyLabel || '— None —')}</option>` : '') +
+      items.map(i => `<option value="${App.esc(i.value)}">${App.esc(i.label)}</option>`).join('');
+  }
+
+  (async () => {
+    me = await App.requireRole(['staff', 'manager', 'owner']);
+
+    if (me.role !== 'owner' && !me.outlet) {
+      $('blocked').innerHTML = '<p style="margin:0">You have no outlet yet, so you can\'t record sales. Please ask the owner to assign your outlet.</p>';
+      $('blocked').classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const [{ data: s, error: e1 }, { data: p, error: e2 }] = await Promise.all([
+        sb.from('settings').select('key, value')
+          .in('key', ['outlets', 'catalog', 'lead_sources', 'payment_methods', 'review_rules']),
+        sb.from('profiles').select('id, full_name, email, role, outlet, active').eq('active', true).order('full_name'),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      (s || []).forEach(r => settings[r.key] = r.value);
+      people = p || [];
+    } catch (err) {
+      $('blocked').innerHTML = `<p class="msg error">${App.esc(App.friendlyError(err))}</p>`;
+      $('blocked').classList.remove('hidden');
+      return;
+    }
+
+    // Outlet: owner picks; staff & managers are fixed to their own outlet
+    const outlets = settings.outlets || [];
+    if (me.role === 'owner') {
+      fillSelect($('outlet'), outlets.map(o => ({ value: o, label: o })), '— Pick an outlet —');
+    } else {
+      fillSelect($('outlet'), [{ value: me.outlet, label: me.outlet }], null);
+      $('outlet').classList.add('hidden');
+      $('outletStatic').textContent = me.outlet;
+      $('outletStatic').classList.remove('hidden');
+    }
+
+    // Items from the catalog
+    const cat = settings.catalog || {};
+    const itemOpts = list => (list || []).map(i => ({ value: i.name, label: `${i.name} (${App.rm(i.price)})` }));
+    fillSelect($('treatment'), itemOpts(cat.treatments));
+    fillSelect($('product'), itemOpts(cat.products));
+    fillSelect($('service'), itemOpts(cat.services));
+
+    fillSelect($('leadSource'), (settings.lead_sources || []).map(x => ({ value: x, label: x })), '— Pick one —');
+    fillSelect($('paymentMethod'), (settings.payment_methods || []).map(x => ({ value: x, label: x })), '— Pick one —');
+
+    $('saleDate').value = todayKL();
+    $('saleDate').max = todayKL();
+
+    fillPeople();
+    $('saleForm').classList.remove('hidden');
+    update();
+  })();
+
+  // Staff lists = active people at the chosen outlet
+  function fillPeople() {
+    const outlet = $('outlet').value;
+    const list = people
+      .filter(p => p.role !== 'owner' && outlet && p.outlet === outlet)
+      .map(p => ({ value: p.id, label: p.full_name || p.email }));
+    ['consultant', 'serviceStaff', 'productSeller'].forEach(id => {
+      const keep = $(id).value;
+      fillSelect($(id), list, outlet ? '— None —' : '— Pick an outlet first —');
+      if (list.some(x => x.value === keep)) $(id).value = keep;
+    });
+    // Handy default: the person keying in is the consultant
+    if (!$('consultant').value && list.some(x => x.value === me.id)) $('consultant').value = me.id;
+  }
+
+  // Picking an item fills in its price (can still be changed)
+  function priceOf(group, name) {
+    const item = ((settings.catalog || {})[group] || []).find(i => i.name === name);
+    return item ? Number(item.price) : 0;
+  }
+  $('treatment').addEventListener('change', () => {
+    $('treatmentAmount').value = $('treatment').value ? priceOf('treatments', $('treatment').value).toFixed(2) : '';
+    update();
+  });
+  $('service').addEventListener('change', () => {
+    $('serviceAmount').value = $('service').value ? priceOf('services', $('service').value).toFixed(2) : '';
+    update();
+  });
+  $('product').addEventListener('change', () => {
+    if ($('product').value) {
+      if (!parseInt($('productQty').value)) $('productQty').value = 1;
+      $('productAmount').value = (priceOf('products', $('product').value) * parseInt($('productQty').value)).toFixed(2);
+    } else {
+      $('productQty').value = ''; $('productAmount').value = '';
+    }
+    update();
+  });
+  $('productQty').addEventListener('input', () => {
+    const q = parseInt($('productQty').value) || 0;
+    if ($('product').value) $('productAmount').value = (priceOf('products', $('product').value) * q).toFixed(2);
+    update();
+  });
+  $('outlet').addEventListener('change', () => { fillPeople(); update(); });
+  document.querySelectorAll('input[name=voucher]').forEach(r => r.addEventListener('change', () => {
+    $('voucherCodeBox').classList.toggle('hidden', !voucherUsed());
+  }));
+  ['treatmentAmount', 'productAmount', 'serviceAmount', 'discount', 'phone', 'consultant', 'leadSource']
+    .forEach(id => $(id).addEventListener('input', update));
+
+  const voucherUsed = () => document.querySelector('input[name=voucher]:checked').value === 'yes';
+
+  // Live total + early warning about review flags (numbers from settings)
+  function update() {
+    const gross = num('treatmentAmount') + num('productAmount') + num('serviceAmount');
+    const total = gross - num('discount');
+    $('totalShow').textContent = App.rm(Math.max(total, 0));
+
+    const rules = settings.review_rules || {};
+    const flags = [];
+    if (rules.big_discount_pct != null && gross > 0 && num('discount') > gross * rules.big_discount_pct / 100)
+      flags.push(`discount is more than ${rules.big_discount_pct}%`);
+    if (rules.large_sale_rm != null && total > rules.large_sale_rm)
+      flags.push(`total is above ${App.rm(rules.large_sale_rm)}`);
+    const missing = [];
+    if (!$('phone').value.trim()) missing.push('phone');
+    if (!$('consultant').value) missing.push('consultant');
+    if (!$('leadSource').value) missing.push('lead source');
+    if (missing.length) flags.push('missing ' + missing.join(', '));
+
+    App.showMsg($('flagMsg'), flags.length
+      ? 'This sale will be marked "Needs review" because: ' + flags.join('; ') + '. You can still save it.'
+      : '', 'info');
+  }
+
+  // Save
+  $('saleForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = $('formMsg');
+    const gross = num('treatmentAmount') + num('productAmount') + num('serviceAmount');
+
+    if (!$('saleDate').value) return App.showMsg(msg, 'Please pick the date.', 'error');
+    if ($('saleDate').value > todayKL()) return App.showMsg(msg, "The date can't be in the future.", 'error');
+    if (!$('outlet').value) return App.showMsg(msg, 'Please pick the outlet.', 'error');
+    if (!$('customerName').value.trim()) return App.showMsg(msg, 'Please enter the customer name.', 'error');
+    if (gross <= 0) return App.showMsg(msg, 'Please enter at least one amount (treatment, product or service).', 'error');
+    if (num('discount') > gross) return App.showMsg(msg, "The discount can't be more than the sale amount.", 'error');
+    if ($('product').value && !(parseInt($('productQty').value) > 0))
+      return App.showMsg(msg, 'Please enter how many of the product were sold.', 'error');
+    if (num('productAmount') > 0 && !$('product').value)
+      return App.showMsg(msg, 'Please pick which product was sold.', 'error');
+
+    const row = {
+      sale_date: $('saleDate').value,
+      outlet: $('outlet').value,
+      customer_name: $('customerName').value.trim(),
+      phone: $('phone').value.trim() || null,
+      consultant_id: $('consultant').value || null,
+      service_staff_id: $('serviceStaff').value || null,
+      product_seller_id: $('productSeller').value || null,
+      treatment: $('treatment').value || null,
+      product: $('product').value || null,
+      product_qty: $('product').value ? parseInt($('productQty').value) || 0 : 0,
+      service: $('service').value || null,
+      treatment_amount: num('treatmentAmount'),
+      product_amount: num('productAmount'),
+      service_amount: num('serviceAmount'),
+      discount: num('discount'),
+      voucher_used: voucherUsed(),
+      voucher_code: voucherUsed() ? ($('voucherCode').value.trim() || null) : null,
+      referred_by: $('referredBy').value.trim() || null,
+      lead_source: $('leadSource').value || null,
+      campaign: $('campaign').value.trim() || null,
+      payment_method: $('paymentMethod').value || null,
+      notes: $('notes').value.trim() || null,
+    };
+
+    $('saveBtn').disabled = true; $('saveBtn').textContent = 'Saving…';
+    const { data, error } = await sb.from('sales').insert(row)
+      .select('id, total_sale, status, review_reasons').single();
+    $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save sale';
+    if (error) return App.showMsg(msg, App.friendlyError(error), 'error');
+
+    const extra = data.status === 'Needs review'
+      ? ` It's marked "Needs review" (${(data.review_reasons || []).join(', ')}).` : '';
+    App.showMsg(msg, `Saved! ${row.customer_name} · ${App.rm(data.total_sale)}.${extra} Ready for the next sale.`, 'ok');
+
+    // Clear the form for the next sale (keep date, outlet & staff)
+    ['customerName', 'phone', 'treatmentAmount', 'productAmount', 'productQty', 'serviceAmount', 'discount',
+     'voucherCode', 'referredBy', 'campaign', 'notes'].forEach(id => $(id).value = '');
+    ['treatment', 'product', 'service', 'leadSource', 'paymentMethod'].forEach(id => $(id).value = '');
+    document.querySelector('input[name=voucher][value=no]').checked = true;
+    $('voucherCodeBox').classList.add('hidden');
+    update();
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  });
+</script>
+</body>
+</html>
