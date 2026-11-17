@@ -1,0 +1,205 @@
+# Zenvique System — Plan (SPEC)
+
+Last updated: 17 Nov 2026 · Status: draft for owner review
+
+All numbers below are starting values. The owner can change them later in **Settings**. All data in the system is **sample data**. Money is shown like **RM 1,234.50**. Dates are shown like **17 Nov 2026**.
+
+---
+
+## A. Purpose
+
+Zenvique has several outlets and one HQ store. This system lets us:
+
+- record every sale at every outlet, every day
+- see which outlets are doing well or poorly
+- see which staff brought in sales and how much commission they earned
+- see which lead sources, referrals and vouchers bring in customers
+- know which products are running low, at HQ and at each outlet
+
+---
+
+## B. Who can see / add / edit / delete what
+
+| | Staff | Manager | Owner |
+|---|---|---|---|
+| **Sales** – see | Only sales they're named in (Consultant, Service Staff or Product Seller) or typed in themselves | All sales at **their own outlet** | All sales, all outlets |
+| **Sales** – add | Yes (for their outlet) | Yes (their outlet) | Yes (any outlet) |
+| **Sales** – edit | Only sales they typed in | Any sale at their outlet | Any sale |
+| **Sales** – delete | No | No | Yes |
+| **Commission** – see | **Only their own share** | Everyone at their outlet | Everyone |
+| **Stock** – see | No | Their outlet only | HQ + every outlet + grand total |
+| **Stock** – count / adjust | No | Their outlet only | Anywhere |
+| **Stock** – move from HQ to an outlet | No | No | Yes |
+| **Settings** (outlets, item list, prices, commission %, alert numbers) | Read only | Read only | Change |
+| **Users** – change role, outlet, active/inactive | No | No | Yes |
+| **History log** (who did what) | No | Their outlet | Everything |
+
+Note: a manager sees **only their assigned outlet**. This replaces the general house rule that managers see everything.
+
+---
+
+## C. Data (what we store)
+
+### Business table 1 — Sales (one row per transaction)
+
+| Field | Example |
+|---|---|
+| Date | 17 Nov 2026 |
+| Outlet | Bangsar (must be filled in) |
+| Customer Name | Sample Customer 1 |
+| Phone | 012-345 6789 |
+| Consultant / Client Owner | Staff A |
+| Service Staff | Staff B |
+| Product Seller | Staff C |
+| Treatment | Facial Basic |
+| Product | Serum 30ml |
+| Product Qty | 1 |
+| Service | Eyebrow Shaping |
+| Treatment Amount | RM 200.00 |
+| Product Amount | RM 120.00 |
+| Service Amount | RM 50.00 |
+| Discount / Promo | RM 20.00 |
+| Voucher Used | Yes / No |
+| Voucher Type / Code | NEWYEAR10 |
+| Referral Source / Referred By | Sample Customer 5 |
+| Lead Source | Instagram, Walk-in, Facebook, Referral … |
+| Campaign Name | Nov Glow Promo |
+| Payment Method | Cash, Card, eWallet, Bank Transfer |
+| Total Sale | worked out automatically: Treatment + Product + Service − Discount |
+| Consultant Commission | worked out automatically |
+| Service Staff Commission | worked out automatically |
+| Product Seller Commission | worked out automatically |
+| Status | OK / Needs review |
+| Notes | free text |
+| (automatic) ID, created at, created by | |
+
+Consultant, Service Staff and Product Seller are kept **separately** because they can be different people. Lead Source and Voucher are also kept **separately**.
+
+### Business table 2 — Stock (one row per product per location)
+
+| Field | Example |
+|---|---|
+| Location | HQ, Bangsar, Puchong … |
+| Product | Serum 30ml |
+| Quantity | 25 |
+| Reorder Level | 5 |
+| (automatic) ID, created at, created by | |
+
+### Supporting tables
+
+- **Profiles**: each user's name, email, role (Owner / Manager / Staff), **assigned outlet**, and active yes/no.
+- **Settings**: the outlet list, the item list (treatments, products and services, each with a price), the commission % values, and the alert numbers in section E.
+- **History log**: who did what and when. This covers every new sale, status change, stock change, stock move and role change.
+- **AI briefs**: saved monthly briefs (see section G).
+
+---
+
+## D. Screens per role
+
+| Screen | Staff | Manager | Owner |
+|---|---|---|---|
+| Login | ✓ | ✓ | ✓ |
+| **New Sale**: form with outlet, customer, the 3 staff roles, items, amounts, voucher, referral, lead source, payment | ✓ | ✓ | ✓ |
+| **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
+| **Outlet Dashboard**: daily and monthly sales, staff performance, treatment vs product, lead source / voucher / referral results | | ✓ | ✓ (pick any outlet) |
+| **Review List**: sales marked "Needs review" | | ✓ | ✓ |
+| **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |
+| **Owner Dashboard**: compare all outlets, all staff commission, lead-source breakdown | | | ✓ |
+| **HQ Stock & Transfers**: HQ stock, move stock from HQ to an outlet, grand total | | | ✓ |
+| **Settings**: outlets, items and prices, commission %, alert numbers | | | ✓ |
+| **Users & Roles** | | | ✓ |
+| **Alerts box** (on every dashboard) | ✓ | ✓ | ✓ |
+
+Every screen works on a phone.
+
+---
+
+## E. Rules (with exact numbers)
+
+| Rule | Starting value |
+|---|---|
+| Consultant commission | **10%** of the Treatment Amount |
+| Service Staff commission | **5%** of the Service Amount |
+| Product Seller commission | **5%** of the Product Amount |
+| Commission is worked out automatically when a sale is saved, and again if the sale is edited | — |
+| Selling a product lowers **that outlet's** stock by the Product Qty | — |
+| **Low Stock** | when quantity is **equal to or below** the reorder level |
+| Moving stock from HQ to an outlet | lowers HQ stock and raises outlet stock by the same amount |
+| Every sale must belong to an outlet | the sale can't be saved without one |
+
+A sale is marked **"Needs review"** when any of these happen:
+
+| Flag | Starting value |
+|---|---|
+| Big discount | discount is **more than 30%** of (Treatment + Product + Service) |
+| Large sale | Total Sale is **above RM 5,000.00** |
+| Missing details | no Phone, **or** no Consultant, **or** no Lead Source |
+| Stock doesn't tally | the sale would take stock **below 0** |
+
+Other warnings (go to the Alerts box, not to a single sale):
+
+| Warning | Starting value |
+|---|---|
+| Quiet outlet | an outlet has **0 sales** on a day it is open (Mon–Sun) |
+| Stock doesn't tally | a manager's stock count is **different** from what the system expects |
+
+*Note: we read "stock inventory not tele" as "stock doesn't tally". Please correct us if you meant something else.*
+
+---
+
+## F. KPIs (5), each with an action
+
+| # | KPI | What it shows | Action when it looks bad |
+|---|---|---|---|
+| 1 | **Monthly Sales** | Total RM this month, per outlet and overall, vs last month | If an outlet is more than 20% down on last month → manager checks staff performance and lead sources |
+| 2 | **Number of Transactions** | How many sales this month | If it's low but Monthly Sales is OK → fewer customers are spending more; push campaigns to bring in new customers |
+| 3 | **Treatment Sales** | RM from treatments this month | If it's dropping → check the consultants' follow-ups and treatment promos |
+| 4 | **Product Sales** | RM from products this month | If it's dropping → remind sellers to recommend products after each treatment |
+| 5 | **Low Stock Items** | Number of products at or below their reorder level | Manager asks the owner for a stock move from HQ; owner reorders when HQ is low |
+
+**Owner also sees (secondary):** commission per staff member, and sales broken down by lead source, voucher and referral.
+
+---
+
+## G. AI feature
+
+**Monthly Brief button** (manager and owner dashboards):
+
+1. The app writes a ready-made question for Claude using the numbers shown on screen, such as sales per outlet, top staff, top lead sources and low stock.
+2. You copy it into Claude, read the answer, and fix anything wrong.
+3. You tick **"I have checked this"** and click **Save**. The brief is kept in the AI briefs list.
+
+**Never-do list:**
+
+- Never put an AI key inside the app.
+- Never send anything to customers automatically.
+- Never let AI change sales, stock or commission.
+- Never put customer phone numbers in the AI question.
+- Never save a brief without the "I have checked this" tick.
+
+---
+
+## H. Not today (maybe later)
+
+- More than one product in a single sale
+- Purchase orders to suppliers
+- Payroll and payslips
+- Online payments
+- Customers booking by themselves
+- Any message sent automatically
+- Customer loyalty points
+
+---
+
+## I. Notifications (who, when, how)
+
+| Who | When | How |
+|---|---|---|
+| Staff | Their commission on a sale is changed or adjusted | Alerts box |
+| Manager | A product at their outlet reaches Low Stock | Alerts box + WhatsApp button (pre-typed message to the owner) |
+| Manager | A sale at their outlet is marked "Needs review" | Alerts box |
+| Owner | Low Stock at HQ or any outlet | Alerts box |
+| Owner | Sales marked "Needs review", quiet outlets, stock counts that don't tally | Alerts box |
+| Owner | Monthly summary (optional): outlet sales, commission, lead sources | "Monthly summary" button that opens a pre-typed WhatsApp message |
+
+WhatsApp buttons only **open** a pre-typed message. A person always checks it and presses Send. Nothing is ever sent to customers automatically.
