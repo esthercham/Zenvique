@@ -39,7 +39,7 @@
     </div>
 
     <div id="pageMsg" class="msg"></div>
-    <div id="alerts" class="card alerts hidden section"></div>
+    <div id="alertBox" class="section"></div>
 
     <div class="kpis section">
       <div class="kpi"><div class="label">All Outlets Total Sales</div><div class="value" id="kTotal">–</div><div class="small" id="kTotalVs"></div></div>
@@ -103,7 +103,7 @@
 
   const SALE_COLS = 'id, sale_date, outlet, customer_name, phone, consultant_id, service_staff_id, service_staff2_id, ' +
     'product_seller_id, treatment, product, product_qty, service, treatment_amount, product_amount, service_amount, ' +
-    'discount, total_sale, voucher_used, voucher_code, referred_by, lead_source, status';
+    'discount, total_sale, voucher_used, voucher_code, referred_by, lead_source, status, transaction_status';
 
   // Period → [first month, last month]
   function periodMonths(mode, month) {
@@ -153,13 +153,17 @@
     $('subtitle').textContent = 'All outlets · ' + periodLabel(mode, mA, mB);
     App.showMsg($('pageMsg'), 'Loading…', 'info');
     try {
-      const [hist, stock, comm, profiles] = await Promise.all([
+      const [allHist, stock, comm, profiles, alerts] = await Promise.all([
         // Everything up to the end of the period (trend + new customers need history)
         App.fetchAll(() => sb.from('sales').select(SALE_COLS).lte('sale_date', to).order('sale_date').order('id')),
         App.fetchAll(() => sb.from('stock').select('location, product, quantity, reorder_level').order('product').order('location')),
         App.fetchAll(() => sb.rpc('commission_lines', { p_from: from, p_to: to })),
         App.fetchAll(() => sb.from('profiles').select('id, full_name, email, role, outlet, active').order('full_name')),
+        App.loadAlerts(),
       ]);
+      // Cancelled / refunded sales are left out of every total
+      const hist = allHist.filter(s => s.transaction_status === 'Completed');
+      App.renderAlerts($('alertBox'), alerts, { me: { id: null, role: 'owner' }, onChange: load });
       cache = { mode, mA, mB, from, to, hist, stock, comm, profiles };
       App.showMsg($('pageMsg'), '');
       render();
@@ -214,14 +218,8 @@
     const newCust = [...first.values()].filter(inRange);
     $('kNew').textContent = newCust.length;
 
-    // Stock + alerts
-    const low = stock.filter(s => s.quantity <= s.reorder_level);
-    $('kLow').textContent = low.length;
-    const review = rows.filter(s => s.status !== 'OK');
-    const alerts = low.map(s => `Low stock at <strong>${App.esc(s.location)}</strong>: ${App.esc(s.product)}, ${s.quantity} left (reorder at ${s.reorder_level})`);
-    if (review.length) alerts.push(`${review.length} sale${review.length === 1 ? '' : 's'} in this period ${review.length === 1 ? 'needs' : 'need'} review or approval`);
-    $('alerts').innerHTML = alerts.length ? `<strong>Alerts</strong><ul>${alerts.map(a => `<li>${a}</li>`).join('')}</ul>` : '';
-    $('alerts').classList.toggle('hidden', !alerts.length);
+    // Low stock count (the Alerts box above lists them)
+    $('kLow').textContent = stock.filter(s => s.reorder_level > 0 && s.quantity <= s.reorder_level).length;
 
     // Outlet comparison
     const extra = [...new Set(rows.map(s => s.outlet))].filter(o => !outlets.includes(o));

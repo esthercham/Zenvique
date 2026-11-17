@@ -40,7 +40,7 @@
       <div class="card"><h3>Commission records</h3><p>One line per person per sale or visit: treatment 1%, product 5%, service FULL/FOC/SHARE.</p><button data-x="commission">Download</button></div>
       <div class="card"><h3>Commission summary</h3><p>Per person, per outlet: Treatment, Product and Service commission and total, like the monthly commission sheet.</p><button data-x="commsum">Download</button></div>
       <div class="card"><h3>Inventory</h3><p>Stock today at HQ and every outlet, with reorder levels and low-stock status.</p><button data-x="inventory">Download</button></div>
-      <div class="card"><h3>Customer records</h3><p>Each customer: phone, outlets, first and last visit, visits, total paid, lead source.</p><button data-x="customers">Download</button></div>
+      <div class="card"><h3>Customer records</h3><p>The client database: phone, birthday, status, VIP, visits, total spend, first and last visit, lead source. (Dates above don't apply.)</p><button data-x="customers">Download</button></div>
       <div class="card"><h3>Lead source data</h3><p>Customers and sales by lead source and outlet.</p><button data-x="leads">Download</button></div>
       <div class="card"><h3>Voucher usage</h3><p>Every sale where a voucher was used.</p><button data-x="vouchers">Download</button></div>
     </div>
@@ -55,7 +55,8 @@
   const SALE_COLS = 'id, sale_date, outlet, customer_name, phone, consultant_id, treatment, treatment_amount, product, ' +
     'product_qty, product_amount, product_seller_id, discount, total_sale, payment_method, service, service_amount, ' +
     'service_staff_id, service_rate_type, service_rate_pct, service_staff2_id, service2_rate_type, service2_rate_pct, ' +
-    'voucher_used, voucher_code, referred_by, lead_source, campaign, status, review_reasons, notes';
+    'voucher_used, voucher_code, referred_by, lead_source, campaign, status, review_reasons, notes, ' +
+    'transaction_status, payment_status, balance_due, due_date';
 
   const money = v => Number(v || 0).toFixed(2);
   const who = id => id ? (names.get(id) || '') : '';
@@ -112,14 +113,16 @@
         ['Date', 'Outlet', 'Customer', 'Phone', 'Consultant', 'Treatment / package', 'Treatment RM', 'Product', 'Qty',
          'Product RM', 'Product seller', 'Discount RM', 'Total paid RM', 'Payment method', 'Treatment done',
          'Session RM', 'Beautician', 'Rate', '2nd beautician', '2nd rate', 'Voucher used', 'Voucher', 'Referred by',
-         'Lead source', 'Campaign', 'Status', 'Review reasons', 'Notes'],
+         'Lead source', 'Campaign', 'Review status', 'Review reasons', 'Notes', 'Transaction status',
+         'Payment status', 'Balance owed RM', 'Due date'],
         rows.map(s => [App.date(s.sale_date), s.outlet, s.customer_name, s.phone, who(s.consultant_id), s.treatment,
           money(s.treatment_amount), s.product, s.product_qty || '', money(s.product_amount), who(s.product_seller_id),
           money(s.discount), money(s.total_sale), s.payment_method, s.service, money(s.service_amount),
           who(s.service_staff_id), s.service_rate_type ? `${s.service_rate_type} ${Number(s.service_rate_pct)}%` : '',
           who(s.service_staff2_id), s.service2_rate_type ? `${s.service2_rate_type} ${Number(s.service2_rate_pct)}%` : '',
           s.voucher_used ? 'Yes' : 'No', s.voucher_code, s.referred_by, s.lead_source, s.campaign, s.status,
-          (s.review_reasons || []).join('; '), s.notes]))];
+          (s.review_reasons || []).join('; '), s.notes, s.transaction_status, s.payment_status,
+          money(s.balance_due), s.due_date ? App.date(s.due_date) : '']))];
     },
     async commission() {
       const rows = await commission();
@@ -155,6 +158,20 @@
         rows.map(s => [s.location, s.product, s.quantity, s.reorder_level, s.quantity <= s.reorder_level ? 'Low stock' : 'OK']))];
     },
     async customers() {
+      // The client database (all customers; outlet filter = home outlet)
+      const list = await App.fetchAll(() => {
+        let q = sb.from('customers').select('name, phone, email, birthday, home_outlet, customer_status, is_vip, visits, ' +
+          'total_spend, first_visit, last_visit, lead_source, referred_by, notes').order('name').order('id');
+        if ($('outlet').value) q = q.eq('home_outlet', $('outlet').value);
+        return q;
+      });
+      return ['customers', csv(['Customer', 'Phone', 'Email', 'Birthday', 'Home outlet', 'Status', 'VIP', 'Visits',
+        'Total spend RM', 'First visit', 'Last visit', 'Lead source', 'Referred by', 'Notes'],
+        list.map(c => [c.name, c.phone, c.email, c.birthday ? App.date(c.birthday) : '', c.home_outlet, c.customer_status,
+          c.is_vip ? 'Yes' : 'No', c.visits, money(c.total_spend), c.first_visit ? App.date(c.first_visit) : '',
+          c.last_visit ? App.date(c.last_visit) : '', c.lead_source, c.referred_by, c.notes]))];
+    },
+    async customersFromSales() {
       const rows = await sales();
       const m = new Map();
       rows.forEach(s => {

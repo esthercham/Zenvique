@@ -86,6 +86,8 @@
       <button type="button" class="ghost" id="logoutBtn">Log out</button>
     </div>
 
+    <div id="homeAlerts"></div>
+
     <div class="card">
       <h2 style="margin:0 0 4px" id="welcome"></h2>
       <p style="margin:0">
@@ -97,6 +99,16 @@
       <h3 style="margin:24px 0 0">Your screens</h3>
       <p class="muted" style="margin:4px 0 0">These will be switched on one by one as we build them.</p>
       <ul class="menu" id="menu"></ul>
+    </div>
+
+    <div class="card section">
+      <h3 style="margin:0 0 4px">My WhatsApp number</h3>
+      <p class="muted" style="margin:0">Used for the "Send WhatsApp" buttons when your manager or the owner needs to reach you.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <input id="myPhone" type="tel" inputmode="tel" placeholder="012-345 6789" style="flex:1 1 200px">
+        <button type="button" id="savePhone">Save</button>
+      </div>
+      <div id="phoneMsg" class="msg"></div>
     </div>
   </div>
 
@@ -233,7 +245,28 @@
           : `<li class="soon"><strong>${App.esc(s.name)}</strong><small>${App.esc(s.note)} · coming soon</small></li>`)
         .join('');
     }
+    $('myPhone').value = profile.phone || '';
+    $('savePhone').onclick = async () => {
+      const phone = $('myPhone').value.trim();
+      if (phone && phone.replace(/\D/g, '').length < 9) return App.showMsg($('phoneMsg'), 'Please enter a full phone number.', 'error');
+      const { error } = await sb.from('profiles').update({ phone: phone || null }).eq('id', profile.id);
+      App.showMsg($('phoneMsg'), error ? App.friendlyError(error) : 'Saved.', error ? 'error' : 'ok');
+    };
     show('homeView');
+    if (profile.active) loadHomeAlerts(profile);
+  }
+
+  async function loadHomeAlerts(profile) {
+    try {
+      const [alerts, { data: s }] = await Promise.all([
+        App.loadAlerts(),
+        sb.from('settings').select('value').eq('key', 'owner_whatsapp').maybeSingle(),
+      ]);
+      App.renderAlerts($('homeAlerts'), alerts, { me: profile, ownerWhatsapp: (s?.value || {}).number,
+        onChange: () => loadHomeAlerts(profile) });
+    } catch (err) {
+      $('homeAlerts').innerHTML = `<div class="msg error">${App.esc(App.friendlyError(err))}</div>`;
+    }
   }
 
   // ---------- Start ----------

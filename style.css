@@ -113,4 +113,39 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .filters > div { flex: 1 1 160px; }
 .filters label { margin-top: 0; }
 .link { background: none; border: 0; color: var(--brand); padding: 0; font-weight: 600; cursor: pointer; }
+/* Alerts & row colours: Red = Act now, Amber = Watch */
+:root { --red-bg: #fef2f2; --red: #b91c1c; --amber-bg: #fffbeb; --amber: #b45309; }
+.alertbox { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.alertbox.ok { color: var(--ok); }
+.alert-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+.alerts-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.alert { border-radius: 8px; padding: 8px 10px; border-left: 4px solid; }
+.alert.red { background: var(--red-bg); border-color: var(--red); }
+.alert.amber { background: var(--amber-bg); border-color: var(--amber); }
+.alert .muted { font-size: .88rem; }
+.alert-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .75rem; font-weight: 700; margin-right: 4px; }
+.tag.red { background: var(--red); color: #fff; }
+.tag.amber { background: var(--amber); color: #fff; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-top: 6px; }
+.legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+.dot.red { background: var(--red); } .dot.amber { background: var(--amber); }
+tr.row-red td { background: var(--red-bg); }
+tr.row-red td:first-child { box-shadow: inset 4px 0 0 var(--red); }
+tr.row-amber td { background: var(--amber-bg); }
+tr.row-amber td:first-child { box-shadow: inset 4px 0 0 var(--amber); }
+button.small, .btn.small { padding: 6px 10px; font-size: .85rem; }
+.btn.wa { background: #15803d; }
+.btn.wa:hover { background: #166534; }
+button.danger { background: var(--danger); }
+button.danger:hover { background: #991b1b; }
+dialog.dlg { border: 0; border-radius: 12px; padding: 20px; width: min(560px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
+dialog.dlg::backdrop { background: rgba(0,0,0,.35); }
+.before { color: var(--danger); text-decoration: line-through; }
+.after { color: var(--ok); font-weight: 600; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .78rem; font-weight: 600; background: var(--bg); }
+.pill.OK, .pill.Completed, .pill.Paid { background: var(--ok-bg); color: var(--ok); }
+.pill.Needs, .pill.Partial, .pill.Outstanding { background: #fef3c7; color: #92400e; }
+.pill.Pending { background: var(--info-bg); color: var(--info); }
+.pill.Cancelled, .pill.Refunded { background: var(--red-bg); color: var(--red); }
 .link:hover { background: none; text-decoration: underline; }

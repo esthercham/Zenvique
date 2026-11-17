@@ -41,6 +41,7 @@
           <option value="sales">Sales</option>
           <option value="stock">Stock</option>
           <option value="settings">Settings</option>
+          <option value="customers">Customers</option>
           <option value="profiles">Users &amp; roles</option>
           <option value="ai_briefs">AI briefs</option>
         </select>
@@ -68,15 +69,21 @@
     service_rate_pct: 'Rate %', service2_rate_type: '2nd rate type', service2_rate_pct: '2nd rate %',
     reorder_level: 'Reorder level', consultant_pct: 'Consultant %', service_staff_pct: 'Beautician %', product_seller_pct: 'Product seller %',
     big_discount_pct: 'Big discount %', large_sale_rm: 'Large sale RM',
+    transaction_status: 'Transaction status', payment_status: 'Payment status', balance_due: 'Balance owed',
+    due_date: 'Due date', customer_id: 'Customer record', issue_status: 'Stock issue', issue_note: 'Issue note',
+    name: 'Name', email: 'Email', birthday: 'Birthday', home_outlet: 'Home outlet', customer_status: 'Customer status',
+    is_vip: 'VIP', critical_stock_pct: 'Critical stock %', overdue_days: 'Overdue days',
+    target_warning_pct: 'Target warning %', high_discount_pct: 'High discount %',
   };
   const ACTIONS = {
     'create': 'Created', 'edit': 'Edited', 'delete': 'Deleted', 'status change': 'Status changed',
     'approve change': 'Approved manager change', 'reject change': 'Rejected manager change',
     'role change': 'User changed', 'settings change': 'Settings changed', 'stock transfer': 'Stock moved',
     'stock count': 'Stock counted', 'stock count mismatch': "Stock count didn't tally",
-    'reorder level change': 'Reorder level changed',
+    'reorder level change': 'Reorder level changed', 'change requested': 'Manager asked for a change',
+    'stock issue change': 'Stock issue changed', 'stock issue requested': 'Manager asked for a stock issue change',
   };
-  const TABLES = { sales: 'Sale', stock: 'Stock', settings: 'Settings', profiles: 'User', ai_briefs: 'AI brief' };
+  const TABLES = { sales: 'Sale', stock: 'Stock', settings: 'Settings', profiles: 'User', ai_briefs: 'AI brief', customers: 'Customer' };
 
   const show = (k, v) => {
     if (v === null || v === undefined || v === '') return '—';
@@ -119,8 +126,10 @@
   function details(l) {
     const d = l.details || {};
     switch (l.action) {
-      case 'edit': case 'reorder level change':
-        return (d.product ? `<li>Product: ${App.esc(d.product)}</li>` : '') + diff(d.before, d.after).join('');
+      case 'edit': case 'reorder level change': case 'change requested':
+      case 'stock issue change': case 'stock issue requested':
+        return (d.product ? `<li>Product: ${App.esc(d.product)}</li>` : '') +
+          (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '') + diff(d.before, d.after).join('');
       case 'settings change':
         return `<li>Setting: <strong>${App.esc(d.setting || l.record_id)}</strong></li>` +
           (d.before == null ? '<li>First saved</li>' : diff(d.before, d.after).join(''));
@@ -132,10 +141,13 @@
         return out.join('');
       }
       case 'status change':
-        return change('Status', d.from, d.to) + (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '') +
-          (d.proposed && d.to === 'Pending approval' ? '<li>Waiting for owner approval</li>' : '');
+        return change('Review status', d.from, d.to) + (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '') +
+          (d.proposed && d.to === 'Pending approval'
+            ? '<li>Waiting for owner approval. Asked to change:</li>' + diff(d.before, d.proposed).join('') : '');
       case 'approve change': case 'reject change':
-        return (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '');
+        return (d.product ? `<li>Product: ${App.esc(d.product)}</li>` : '') +
+          (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '') +
+          (d.before && d.after ? diff(d.before, d.after).join('') : '');
       case 'stock transfer':
         return `<li>${App.esc(d.product)}: ${d.qty} from ${App.esc(d.from)} → ${App.esc(d.to)}</li>`;
       case 'stock count': case 'stock count mismatch':

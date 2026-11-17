@@ -39,6 +39,7 @@
       <div style="flex:0 0 auto"><button type="button" class="ghost" id="dlBtn">Download my sheet (CSV)</button></div>
     </div>
     <div id="pageMsg" class="msg"></div>
+    <div id="alertBox" class="section"></div>
 
     <div class="kpis section">
       <div class="kpi"><div class="label">My Commission</div><div class="value" id="kComm">–</div><div class="small">this month, all outlets</div></div>
@@ -61,6 +62,7 @@
     <div class="card section">
       <h2>My sales this month</h2>
       <p class="muted" style="margin:0 0 8px">Sales where I'm the Consultant, Product Seller or Beautician, or that I keyed in.</p>
+      <script>document.write(App.legendHtml())</script>
       <div class="tablewrap" id="tblSales"></div>
     </div>
   </div>
@@ -73,7 +75,7 @@
 
   const SALE_COLS = 'id, created_by, sale_date, outlet, customer_name, consultant_id, product_seller_id, service_staff_id, ' +
     'service_staff2_id, treatment, product, product_qty, service, treatment_amount, product_amount, service_amount, ' +
-    'discount, total_sale, status, review_reasons, owner_note';
+    'discount, total_sale, status, review_reasons, owner_note, transaction_status, payment_status, balance_due, due_date';
   const sum = (list, fn) => list.reduce((a, x) => a + fn(x), 0);
 
   (async () => {
@@ -97,6 +99,11 @@
     $('commTitle').textContent = `${App.monthLabel(month)} Commission`;
     App.showMsg($('pageMsg'), '');
     try {
+      App.loadAlerts().then(alerts => {
+        cache && (cache.levels = App.alertLevels(alerts));
+        App.renderAlerts($('alertBox'), alerts, { me, onChange: load });
+        if (cache) render();
+      }).catch(() => {});
       const [lines, sales] = await Promise.all([
         App.fetchAll(() => sb.rpc('commission_lines', { p_from: from, p_to: to })),
         App.fetchAll(() => sb.from('sales').select(SALE_COLS).gte('sale_date', from).lte('sale_date', to)
@@ -105,7 +112,7 @@
       const mine = lines.filter(l => l.staff_id === me.id);   // owner gets everyone's lines; keep only mine
       const mySales = sales.filter(s => [s.created_by, s.consultant_id, s.product_seller_id,
                                           s.service_staff_id, s.service_staff2_id].includes(me.id));
-      cache = { month, mine, mySales };
+      cache = { month, mine, mySales, levels: cache && cache.levels };
       render();
     } catch (err) {
       App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
@@ -183,9 +190,10 @@
         <th class="num">Paid</th><th>Status</th></tr></thead><tbody>
         ${mySales.map(s => {
           const what = [s.treatment, s.product && `${s.product} ×${s.product_qty}`, s.service && `Done: ${s.service}`].filter(Boolean).join(' · ');
-          const st = s.status || 'OK';
-          const note = st !== 'OK' && (s.review_reasons || []).length ? `<div class="muted" style="font-size:.8rem">${App.esc(s.review_reasons.join(', '))}</div>` : '';
-          return `<tr><td>${App.date(s.sale_date)}</td><td>${App.esc(s.customer_name)}<div class="muted" style="font-size:.8rem">${App.esc(s.outlet)}</div></td>
+          const st = s.transaction_status !== 'Completed' ? s.transaction_status : (s.status || 'OK');
+          const note = (st !== 'OK' && (s.review_reasons || []).length ? `<div class="muted" style="font-size:.8rem">${App.esc(s.review_reasons.join(', '))}</div>` : '') +
+            (s.payment_status && s.payment_status !== 'Paid' ? `<div class="muted" style="font-size:.8rem">${App.esc(s.payment_status)}: ${App.rm(s.balance_due)} due ${App.date(s.due_date)}</div>` : '');
+          return `<tr class="${App.rowClass(cache.levels, s.id)}"><td>${App.date(s.sale_date)}</td><td>${App.esc(s.customer_name)}<div class="muted" style="font-size:.8rem">${App.esc(s.outlet)}</div></td>
             <td>${App.esc(what)}</td><td>${App.esc(roles(s))}</td><td class="num">${App.rm(s.total_sale)}</td>
             <td><span class="pill ${st.split(' ')[0]}">${App.esc(st)}</span>${note}</td></tr>`;
         }).join('')}</tbody></table>`;

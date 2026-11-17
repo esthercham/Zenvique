@@ -10,30 +10,12 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <style>
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
-    .filters > div { flex: 1 1 180px; }
-    .filters label { margin-top: 0; }
-    .kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-    .kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
-    .kpi .label { color: var(--muted); font-size: .85rem; font-weight: 600; }
-    .kpi .value { font-size: 1.45rem; font-weight: 700; margin-top: 2px; }
-    .kpi .small { color: var(--muted); font-size: .82rem; margin-top: 2px; }
-    .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 8px; }
-    .bar > div { height: 100%; background: var(--brand); }
-    .kpi.minor .value { font-size: 1.15rem; }
-    .section { margin-top: 16px; }
-    .section h2 { font-size: 1.1rem; margin: 0 0 10px; }
-    .cols { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
-    @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
-    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { color: var(--muted); font-weight: 600; font-size: .82rem; }
-    td.num, th.num { text-align: right; white-space: nowrap; }
-    .low { color: var(--danger); font-weight: 700; }
-    .alerts { border-left: 4px solid var(--danger); }
-    .alerts ul { margin: 6px 0 0; padding-left: 18px; }
-    .empty { color: var(--muted); font-size: .9rem; margin: 4px 0; }
-    .chartbox { position: relative; height: 240px; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .card-head h2 { margin: 0; }
+    .card-head input { max-width: 240px; }
+    td .small { white-space: nowrap; }
+    .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -60,10 +42,10 @@
     </div>
 
     <div id="pageMsg" class="msg"></div>
-    <div id="alerts" class="card alerts hidden section"></div>
+    <div id="alertBox"></div>
 
     <!-- Main KPIs -->
-    <div class="kpis section">
+    <div class="kpis">
       <div class="kpi"><div class="label">Branch Total Sales</div><div class="value" id="kTotal">–</div><div class="small" id="kTotalVs"></div></div>
       <div class="kpi">
         <div class="label">Sales Target Achievement</div>
@@ -71,17 +53,29 @@
         <div class="bar"><div id="kBar" style="width:0"></div></div>
         <div class="small" id="kTarget"></div>
       </div>
-      <div class="kpi" id="kMineBox"><div class="label">My Personal Sales</div><div class="value" id="kMine">–</div><div class="small" id="kMineN"></div></div>
-      <div class="kpi"><div class="label">Sales Volume</div><div class="value" id="kVol">–</div><div class="small">paid transactions</div></div>
+      <div class="kpi"><div class="label">My Personal Sales</div><div class="value" id="kMine">–</div><div class="small" id="kMineN"></div></div>
+      <div class="kpi"><div class="label">Sales Volume</div><div class="value" id="kVol">–</div><div class="small">completed paid transactions</div></div>
       <div class="kpi"><div class="label">Treatment Sales</div><div class="value" id="kTrt">–</div><div class="small">personal sales, after discount</div></div>
     </div>
 
     <!-- Breakdown -->
     <div class="kpis section">
       <div class="kpi minor"><div class="label">Product Sales</div><div class="value" id="kProd">–</div></div>
-      <div class="kpi minor"><div class="label">Service Done</div><div class="value" id="kSvc">–</div><div class="small" id="kSvcN">session value, not money paid</div></div>
+      <div class="kpi minor"><div class="label">Service Done</div><div class="value" id="kSvc">–</div><div class="small" id="kSvcN"></div></div>
+      <div class="kpi minor"><div class="label">Balance Owed</div><div class="value" id="kOwed">–</div><div class="small" id="kOwedN"></div></div>
       <div class="kpi minor"><div class="label">New Customers</div><div class="value" id="kNew">–</div><div class="small">first visit to this outlet</div></div>
       <div class="kpi minor"><div class="label">Low Stock Items</div><div class="value" id="kLow">–</div></div>
+    </div>
+
+    <!-- Sales records with statuses -->
+    <div class="card section">
+      <div class="card-head">
+        <h2>Sales records</h2>
+        <input id="salesSearch" type="search" placeholder="Search customer…">
+      </div>
+      <div id="legend1"></div>
+      <p class="muted" id="approvalNote" style="margin:6px 0 0;font-size:.88rem"></p>
+      <div class="tablewrap" id="tblSales" style="margin-top:8px"></div>
     </div>
 
     <div class="card section">
@@ -90,60 +84,54 @@
     </div>
 
     <div class="cols">
-      <div class="card section"><h2>Treatment breakdown</h2><div id="tblTrt"></div></div>
-      <div class="card section"><h2>Product breakdown</h2><div id="tblProd"></div></div>
-      <div class="card section"><h2>Lead source</h2><div id="tblLead"></div></div>
-      <div class="card section"><h2>Referral source</h2><div id="tblRef"></div></div>
-      <div class="card section"><h2>Voucher usage</h2><div id="tblVoucher"></div></div>
-      <div class="card section"><h2>New customers</h2><div id="tblNew"></div></div>
+      <div class="card section"><h2>Treatment breakdown</h2><div class="tablewrap" id="tblTrt"></div></div>
+      <div class="card section"><h2>Product breakdown</h2><div class="tablewrap" id="tblProd"></div></div>
+      <div class="card section"><h2>Lead source</h2><div class="tablewrap" id="tblLead"></div></div>
+      <div class="card section"><h2>Referral source</h2><div class="tablewrap" id="tblRef"></div></div>
+      <div class="card section"><h2>Voucher usage</h2><div class="tablewrap" id="tblVoucher"></div></div>
+      <div class="card section"><h2>New customers</h2><div class="tablewrap" id="tblNew"></div></div>
     </div>
 
     <div class="card section">
       <h2>Stock inventory</h2>
-      <div id="tblStock"></div>
+      <div id="legend2"></div>
+      <div class="tablewrap" id="tblStock" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card section">
+      <div class="card-head">
+        <h2>Customers</h2>
+        <input id="custSearch" type="search" placeholder="Search name or phone…">
+      </div>
+      <div class="tablewrap" id="tblCust"></div>
     </div>
   </div>
 
+  <dialog id="editDlg" class="dlg"></dialog>
+
 <script>
   const $ = id => document.getElementById(id);
-  let me, settings = {}, chart = null;
+  let me, settings = {}, chart = null, data = null;
 
   $('logoutBtn').addEventListener('click', () => App.logout());
 
-  const SALE_COLS = 'id, sale_date, outlet, customer_name, phone, consultant_id, treatment, product, product_qty, ' +
-    'service, treatment_amount, product_amount, service_amount, discount, total_sale, voucher_used, voucher_code, ' +
-    'referred_by, lead_source, status';
+  const SALE_COLS = 'id, created_by, sale_date, outlet, customer_id, customer_name, phone, consultant_id, treatment, product, ' +
+    'product_qty, service, service_staff_id, product_seller_id, treatment_amount, product_amount, service_amount, discount, ' +
+    'total_sale, voucher_used, voucher_code, referred_by, lead_source, status, review_reasons, change_reason, ' +
+    'transaction_status, payment_status, balance_due, due_date';
+  const done = s => s.transaction_status === 'Completed';
 
-  const ym = d => d.slice(0, 7);
-  const monthStart = m => m + '-01';
-  const monthEnd = m => { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10); };
-  const addMonths = (m, n) => { const [y, mo] = m.split('-').map(Number); const d = new Date(Date.UTC(y, mo - 1 + n, 1)); return d.toISOString().slice(0, 7); };
-  const monthLabel = m => new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-  const todayKL = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
-
-  // Split a sale's paid total into treatment / product shares (after discount)
-  function shares(s) {
-    const gross = Number(s.treatment_amount) + Number(s.product_amount);
-    const f = gross > 0 ? Number(s.total_sale) / gross : 0;
-    return { trt: Number(s.treatment_amount) * f, prod: Number(s.product_amount) * f };
-  }
-  const custKey = s => (s.phone || '').replace(/\D/g, '') || (s.customer_name || '').trim().toLowerCase();
-
-  function table(el, headers, rows, emptyText) {
+  function table(el, headers, rows, emptyText, rowClasses) {
     if (!rows.length) { el.innerHTML = `<p class="empty">${emptyText || 'Nothing this month.'}</p>`; return; }
     el.innerHTML = `<table><thead><tr>${headers.map(h => `<th class="${h.num ? 'num' : ''}">${App.esc(h.t)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${headers[i].num ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      <tbody>${rows.map((r, i) => `<tr class="${(rowClasses && rowClasses[i]) || ''}">${r.map((c, j) => `<td class="${headers[j].num ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   }
-  // Group rows -> [{key, n, rm}] sorted by RM
   function group(list, keyFn, rmFn) {
     const m = new Map();
-    list.forEach(s => {
-      const k = keyFn(s); if (!k) return;
-      const g = m.get(k) || { key: k, n: 0, rm: 0 };
-      g.n++; g.rm += rmFn(s); m.set(k, g);
-    });
+    list.forEach(s => { const k = keyFn(s); if (!k) return; const g = m.get(k) || { key: k, n: 0, rm: 0 }; g.n++; g.rm += rmFn(s); m.set(k, g); });
     return [...m.values()].sort((a, b) => b.rm - a.rm || b.n - a.n);
   }
+  const pill = v => `<span class="pill ${App.esc(String(v).split(' ')[0])}">${App.esc(v)}</span>`;
 
   (async () => {
     me = await App.requireRole(['manager', 'owner']);
@@ -153,9 +141,9 @@
       return;
     }
     try {
-      const { data, error } = await sb.from('settings').select('key, value').in('key', ['outlets', 'sales_targets']);
+      const { data: s, error } = await sb.from('settings').select('key, value').in('key', ['outlets', 'sales_targets', 'owner_whatsapp']);
       if (error) throw error;
-      (data || []).forEach(r => settings[r.key] = r.value);
+      (s || []).forEach(r => settings[r.key] = r.value);
     } catch (err) { return App.showMsg($('pageMsg'), App.friendlyError(err), 'error'); }
 
     if (me.role === 'owner') {
@@ -165,9 +153,15 @@
       $('outletPick').classList.remove('hidden');
       $('outlet').addEventListener('change', load);
     }
-    $('month').value = ym(todayKL());
-    $('month').max = ym(todayKL());
+    $('approvalNote').textContent = me.role === 'manager'
+      ? 'Any change you make here is sent to the owner for approval. It takes effect once approved.'
+      : 'As owner, your changes apply straight away.';
+    $('legend1').innerHTML = $('legend2').innerHTML = App.legendHtml();
+    $('month').value = App.ym(App.todayKL());
+    $('month').max = App.ym(App.todayKL());
     $('month').addEventListener('change', load);
+    $('salesSearch').addEventListener('input', () => data && renderSales());
+    $('custSearch').addEventListener('input', () => data && renderCustomers());
     load();
   })();
 
@@ -175,38 +169,43 @@
 
   async function load() {
     const outlet = currentOutlet();
-    const month = $('month').value || ym(todayKL());
-    $('subtitle').textContent = `${outlet} · ${monthLabel(month)}`;
+    const month = $('month').value || App.ym(App.todayKL());
+    $('subtitle').textContent = `${outlet} · ${App.monthLabel(month)}`;
     App.showMsg($('pageMsg'), '');
-
     try {
-      const [hist, { data: stock, error: e2 }] = await Promise.all([
-        // All sales for this outlet up to the end of the month (for trend & new customers)
+      const [hist, stock, customers, alerts] = await Promise.all([
         App.fetchAll(() => sb.from('sales').select(SALE_COLS).eq('outlet', outlet)
-          .lte('sale_date', monthEnd(month)).order('sale_date').order('id')),
-        sb.from('stock').select('product, quantity, reorder_level').eq('location', outlet).order('product'),
+          .lte('sale_date', App.monthEnd(month)).order('sale_date').order('id')),
+        App.fetchAll(() => sb.from('stock').select('id, product, quantity, reorder_level, issue_status, issue_note, proposed_issue_status')
+          .eq('location', outlet).order('product')),
+        App.fetchAll(() => sb.from('customers').select('id, name, phone, birthday, home_outlet, customer_status, is_vip, visits, ' +
+          'total_spend, last_visit, notes, proposed_change').order('last_visit', { ascending: false, nullsFirst: false }).order('id')),
+        App.loadAlerts(),
       ]);
-      if (e2) throw e2;
-      render(outlet, month, hist || [], stock || []);
+      const myAlerts = alerts.filter(a => !a.outlet || a.outlet === outlet);
+      data = { outlet, month, hist, stock, customers, alerts: myAlerts, levels: App.alertLevels(myAlerts) };
+      render();
     } catch (err) {
       App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
     }
   }
 
-  function render(outlet, month, hist, stock) {
-    const rows = hist.filter(s => ym(s.sale_date) === month);
-    const paid = rows.filter(s => Number(s.total_sale) > 0);
+  function render() {
+    const { outlet, month, hist, stock, alerts } = data;
+    App.renderAlerts($('alertBox'), alerts, { me, ownerWhatsapp: (settings.owner_whatsapp || {}).number, onChange: load });
+
+    const rows = hist.filter(s => App.ym(s.sale_date) === month);
+    const live = rows.filter(done);                                 // cancelled / refunded don't count
+    const paid = live.filter(s => Number(s.total_sale) > 0);
     const total = paid.reduce((a, s) => a + Number(s.total_sale), 0);
 
-    // 1. Branch total (+ vs last month)
-    const prevM = addMonths(month, -1);
-    const prevTotal = hist.filter(s => ym(s.sale_date) === prevM).reduce((a, s) => a + Number(s.total_sale), 0);
+    const prevM = App.addMonths(month, -1);
+    const prevTotal = hist.filter(s => App.ym(s.sale_date) === prevM && done(s)).reduce((a, s) => a + Number(s.total_sale), 0);
     $('kTotal').textContent = App.rm(total);
     $('kTotalVs').textContent = prevTotal > 0
-      ? `${total >= prevTotal ? '▲' : '▼'} ${Math.abs((total - prevTotal) / prevTotal * 100).toFixed(1)}% vs ${monthLabel(prevM)}`
-      : `${monthLabel(prevM)}: ${App.rm(prevTotal)}`;
+      ? `${total >= prevTotal ? '▲' : '▼'} ${Math.abs((total - prevTotal) / prevTotal * 100).toFixed(1)}% vs ${App.monthLabel(prevM)}`
+      : `${App.monthLabel(prevM)}: ${App.rm(prevTotal)}`;
 
-    // 2. Target (set by owner in settings)
     const target = Number(((settings.sales_targets || {})[month] || {})[outlet] || 0);
     if (target > 0) {
       const pct = total / target * 100;
@@ -215,80 +214,193 @@
       $('kTarget').innerHTML = `Target ${App.rm(target)} · Actual ${App.rm(total)}<br>` +
         (total >= target ? 'Target reached 🎉' : `Remaining ${App.rm(target - total)}`);
     } else {
-      $('kPct').textContent = '–';
-      $('kBar').style.width = '0';
+      $('kPct').textContent = '–'; $('kBar').style.width = '0';
       $('kTarget').textContent = 'No target set for this month yet (the owner sets it).';
     }
 
-    // 3. My personal sales (I am the Consultant / Client Owner); still part of the branch total
     const mine = paid.filter(s => s.consultant_id === me.id);
     $('kMine').textContent = App.rm(mine.reduce((a, s) => a + Number(s.total_sale), 0));
     $('kMineN').textContent = `${mine.length} transaction${mine.length === 1 ? '' : 's'} as Consultant`;
-
-    // 4-5. Volume, treatment / product / service
     $('kVol').textContent = paid.length;
-    const trt = paid.reduce((a, s) => a + shares(s).trt, 0);
-    const prod = paid.reduce((a, s) => a + shares(s).prod, 0);
-    const svcRows = rows.filter(s => Number(s.service_amount) > 0);
-    $('kTrt').textContent = App.rm(trt);
-    $('kProd').textContent = App.rm(prod);
+    $('kTrt').textContent = App.rm(paid.reduce((a, s) => a + App.shares(s).trt, 0));
+    $('kProd').textContent = App.rm(paid.reduce((a, s) => a + App.shares(s).prod, 0));
+    const svcRows = live.filter(s => Number(s.service_amount) > 0);
     $('kSvc').textContent = App.rm(svcRows.reduce((a, s) => a + Number(s.service_amount), 0));
     $('kSvcN').textContent = `${svcRows.length} session${svcRows.length === 1 ? '' : 's'} · not money paid`;
+    const owed = hist.filter(s => done(s) && s.payment_status !== 'Paid' && Number(s.balance_due) > 0);
+    $('kOwed').textContent = App.rm(owed.reduce((a, s) => a + Number(s.balance_due), 0));
+    $('kOwedN').textContent = `${owed.length} sale${owed.length === 1 ? '' : 's'} with a balance (all months)`;
 
-    // New customers: first ever visit to this outlet falls in this month
     const firstSeen = new Map();
-    hist.forEach(s => { const k = custKey(s); if (k && !firstSeen.has(k)) firstSeen.set(k, s); });
-    const newCust = [...firstSeen.values()].filter(s => ym(s.sale_date) === month);
+    hist.filter(done).forEach(s => { const k = App.custKey(s); if (k && !firstSeen.has(k)) firstSeen.set(k, s); });
+    const newCust = [...firstSeen.values()].filter(s => App.ym(s.sale_date) === month);
     $('kNew').textContent = newCust.length;
+    $('kLow').textContent = stock.filter(s => s.reorder_level > 0 && s.quantity <= s.reorder_level).length;
 
-    // Stock + alerts
-    const low = stock.filter(s => s.quantity <= s.reorder_level);
-    $('kLow').textContent = low.length;
-    const needReview = rows.filter(s => s.status !== 'OK');
-    const alerts = [];
-    low.forEach(s => alerts.push(`Low stock: <strong>${App.esc(s.product)}</strong>, ${s.quantity} left (reorder at ${s.reorder_level})`));
-    if (needReview.length) alerts.push(needReview.length === 1
-      ? '1 sale this month needs review or is waiting for approval'
-      : `${needReview.length} sales this month need review or are waiting for approval`);
-    $('alerts').innerHTML = alerts.length ? `<strong>Alerts</strong><ul>${alerts.map(a => `<li>${a}</li>`).join('')}</ul>` : '';
-    $('alerts').classList.toggle('hidden', !alerts.length);
+    const months = [...Array(6)].map((_, i) => App.addMonths(month, i - 5));
+    drawTrend(months.map(App.monthLabel),
+      months.map(m => hist.filter(s => App.ym(s.sale_date) === m && done(s)).reduce((a, s) => a + Number(s.total_sale), 0)));
 
-    // Trend: last 6 months
-    const months = [...Array(6)].map((_, i) => addMonths(month, i - 5));
-    const sums = months.map(m => hist.filter(s => ym(s.sale_date) === m).reduce((a, s) => a + Number(s.total_sale), 0));
-    drawTrend(months.map(monthLabel), sums);
-
-    // Breakdown tables
-    const rmCell = v => App.rm(v);
+    const rm = v => App.rm(v);
     table($('tblTrt'), [{ t: 'Treatment / package' }, { t: 'Qty', num: 1 }, { t: 'Sales', num: 1 }],
-      group(paid.filter(s => Number(s.treatment_amount) > 0), s => s.treatment || '(not named)', s => shares(s).trt)
-        .map(g => [App.esc(g.key), g.n, rmCell(g.rm)]));
+      group(paid.filter(s => Number(s.treatment_amount) > 0), s => s.treatment || '(not named)', s => App.shares(s).trt)
+        .map(g => [App.esc(g.key), g.n, rm(g.rm)]));
+    const pm = new Map();
+    paid.filter(s => Number(s.product_amount) > 0).forEach(s => {
+      const g = pm.get(s.product) || { key: s.product, u: 0, rm: 0 };
+      g.u += Number(s.product_qty) || 0; g.rm += App.shares(s).prod; pm.set(s.product, g);
+    });
     table($('tblProd'), [{ t: 'Product' }, { t: 'Units', num: 1 }, { t: 'Sales', num: 1 }],
-      (() => {
-        const m = new Map();
-        paid.filter(s => Number(s.product_amount) > 0).forEach(s => {
-          const g = m.get(s.product) || { key: s.product, u: 0, rm: 0 };
-          g.u += Number(s.product_qty) || 0; g.rm += shares(s).prod; m.set(s.product, g);
-        });
-        return [...m.values()].sort((a, b) => b.rm - a.rm).map(g => [App.esc(g.key || '(not named)'), g.u, rmCell(g.rm)]);
-      })());
+      [...pm.values()].sort((a, b) => b.rm - a.rm).map(g => [App.esc(g.key || '(not named)'), g.u, rm(g.rm)]));
     table($('tblLead'), [{ t: 'Lead source' }, { t: 'Customers', num: 1 }, { t: 'Sales', num: 1 }],
-      group(paid, s => s.lead_source || '(not filled in)', s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, rmCell(g.rm)]));
+      group(paid, s => s.lead_source || '(not filled in)', s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, rm(g.rm)]));
     table($('tblRef'), [{ t: 'Referred by' }, { t: 'Customers', num: 1 }, { t: 'Sales', num: 1 }],
-      group(paid, s => (s.referred_by || '').trim(), s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, rmCell(g.rm)]),
+      group(paid, s => (s.referred_by || '').trim(), s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, rm(g.rm)]),
       'No referrals this month.');
-    const vRows = rows.filter(s => s.voucher_used);
     table($('tblVoucher'), [{ t: 'Voucher type / code' }, { t: 'Used', num: 1 }, { t: 'Sales', num: 1 }],
-      group(vRows, s => (s.voucher_code || '').trim() || '(no code)', s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, rmCell(g.rm)]),
-      'No vouchers used this month.');
+      group(live.filter(s => s.voucher_used), s => (s.voucher_code || '').trim() || '(no code)', s => Number(s.total_sale))
+        .map(g => [App.esc(g.key), g.n, rm(g.rm)]), 'No vouchers used this month.');
     table($('tblNew'), [{ t: 'Date' }, { t: 'Customer' }, { t: 'Lead source' }],
       newCust.sort((a, b) => a.sale_date.localeCompare(b.sale_date))
         .map(s => [App.date(s.sale_date), App.esc(s.customer_name), App.esc(s.lead_source || '–')]),
       'No new customers this month.');
-    table($('tblStock'), [{ t: 'Product' }, { t: 'In stock', num: 1 }, { t: 'Reorder at', num: 1 }, { t: 'Status' }],
+
+    table($('tblStock'), [{ t: 'Product' }, { t: 'In stock', num: 1 }, { t: 'Reorder at', num: 1 }, { t: 'Issue' }, { t: '' }],
       stock.map(s => [App.esc(s.product), s.quantity, s.reorder_level,
-        s.quantity <= s.reorder_level ? '<span class="low">Low stock</span>' : 'OK']),
-      'No stock items for this outlet yet.');
+        pill(s.issue_status) + (s.proposed_issue_status ? ` <span class="muted">→ ${App.esc(s.proposed_issue_status)} (waiting)</span>` : '') +
+          (s.issue_note ? `<div class="muted" style="font-size:.8rem">${App.esc(s.issue_note)}</div>` : ''),
+        `<button type="button" class="small ghost" data-stock="${s.id}">Update</button>`]),
+      'No stock items for this outlet yet.', stock.map(s => App.rowClass(data.levels, s.id)));
+    document.querySelectorAll('[data-stock]').forEach(b => b.addEventListener('click', () => editStock(b.dataset.stock)));
+
+    renderSales();
+    renderCustomers();
+  }
+
+  function renderSales() {
+    const { month, hist, levels } = data;
+    const q = $('salesSearch').value.trim().toLowerCase();
+    const rows = hist.filter(s => App.ym(s.sale_date) === month && (!q || (s.customer_name || '').toLowerCase().includes(q)))
+      .sort((a, b) => b.sale_date.localeCompare(a.sale_date));
+    table($('tblSales'),
+      [{ t: 'Date' }, { t: 'Customer' }, { t: 'What' }, { t: 'Paid', num: 1 }, { t: 'Transaction' }, { t: 'Payment' }, { t: 'Review' }, { t: '' }],
+      rows.map(s => {
+        const what = [s.treatment, s.product && `${s.product} ×${s.product_qty}`, s.service && `Done: ${s.service}`].filter(Boolean).join(' · ');
+        const pay = pill(s.payment_status) + (s.payment_status !== 'Paid'
+          ? `<div class="muted" style="font-size:.8rem">${App.rm(s.balance_due)} due ${App.date(s.due_date)}</div>` : '');
+        const rev = pill(s.status) + ((s.review_reasons || []).length && s.status !== 'OK'
+          ? `<div class="muted" style="font-size:.8rem">${App.esc(s.review_reasons.join(', '))}</div>` : '');
+        return [App.date(s.sale_date), App.esc(s.customer_name), App.esc(what), App.rm(s.total_sale),
+          pill(s.transaction_status), pay, rev,
+          s.status === 'Pending approval' && me.role === 'manager' ? '<span class="muted small">Waiting</span>'
+            : `<button type="button" class="small ghost" data-sale="${s.id}">Update</button>`];
+      }), 'No sales this month.', rows.map(s => App.rowClass(levels, s.id)));
+    document.querySelectorAll('[data-sale]').forEach(b => b.addEventListener('click', () => editSale(b.dataset.sale)));
+  }
+
+  function renderCustomers() {
+    const q = $('custSearch').value.trim().toLowerCase();
+    const list = data.customers.filter(c => !q || (c.name + ' ' + (c.phone || '')).toLowerCase().includes(q)).slice(0, 60);
+    table($('tblCust'),
+      [{ t: 'Customer' }, { t: 'Status' }, { t: 'Birthday' }, { t: 'Visits', num: 1 }, { t: 'Total spend', num: 1 }, { t: 'Last visit' }, { t: '' }],
+      list.map(c => [
+        `${App.esc(c.name)}${c.is_vip ? ' <span class="tag amber" style="background:#7c3aed">VIP</span>' : ''}<div class="muted" style="font-size:.8rem">${App.esc(c.phone || '')}</div>`,
+        pill(c.customer_status) + (c.proposed_change ? ' <span class="muted small">change waiting</span>' : ''),
+        c.birthday ? App.date(c.birthday) : '–', c.visits, App.rm(c.total_spend), c.last_visit ? App.date(c.last_visit) : '–',
+        `<button type="button" class="small ghost" data-cust="${c.id}">Update</button>`]),
+      q ? 'No customer matches.' : 'No customers yet.', list.map(c => App.rowClass(data.levels, c.id)));
+    document.querySelectorAll('[data-cust]').forEach(b => b.addEventListener('click', () => editCustomer(b.dataset.cust)));
+  }
+
+  // ---------- Update dialogs ----------
+  const dlg = $('editDlg');
+  const reasonField = () => me.role === 'manager'
+    ? `<label for="dReason">Reason (sent to the owner)</label><input id="dReason" type="text" placeholder="e.g. Customer paid the balance today">`
+    : '';
+  const opts = (list, cur) => list.map(v => `<option ${v === cur ? 'selected' : ''}>${v}</option>`).join('');
+  function openDlg(title, body, onSave) {
+    dlg.innerHTML = `<h2 style="margin:0 0 10px;font-size:1.1rem">${App.esc(title)}</h2>${body}${reasonField()}
+      <div class="msg" id="dMsg"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button type="button" class="ghost" id="dCancel">Cancel</button>
+        <button type="button" id="dSave">${me.role === 'manager' ? 'Send for approval' : 'Save'}</button></div>`;
+    dlg.querySelector('#dCancel').onclick = () => dlg.close();
+    dlg.querySelector('#dSave').onclick = async () => {
+      const reason = me.role === 'manager' ? dlg.querySelector('#dReason').value.trim() : '';
+      if (me.role === 'manager' && !reason) return App.showMsg(dlg.querySelector('#dMsg'), 'Please write a reason for the owner.', 'error');
+      const btn = dlg.querySelector('#dSave'); btn.disabled = true;
+      const err = await onSave(reason);
+      btn.disabled = false;
+      if (err) return App.showMsg(dlg.querySelector('#dMsg'), err, 'error');
+      App.showMsg(dlg.querySelector('#dMsg'), me.role === 'manager' ? 'Sent to the owner for approval.' : 'Saved.', 'ok');
+      setTimeout(() => { dlg.close(); load(); }, 700);
+    };
+    dlg.showModal();
+  }
+
+  function editSale(id) {
+    const s = data.hist.find(x => x.id === id);
+    openDlg(`Update sale · ${s.customer_name} · ${App.date(s.sale_date)}`, `
+      <div class="grid2">
+        <div><label>Transaction status</label><select id="dTx">${opts(['Completed', 'Cancelled', 'Refunded'], s.transaction_status)}</select></div>
+        <div><label>Payment status</label><select id="dPay">${opts(['Paid', 'Partial', 'Outstanding'], s.payment_status)}</select></div>
+        <div><label>Balance owed RM</label><input id="dBal" type="number" min="0" step="0.01" value="${Number(s.balance_due) || ''}"></div>
+        <div><label>Due date</label><input id="dDue" type="date" value="${s.due_date || ''}"></div>
+      </div>
+      ${s.status === 'Needs review' ? `<label style="display:flex;gap:8px;align-items:center;font-weight:500">
+        <input type="checkbox" id="dReviewed" style="width:18px;height:18px"> Mark as reviewed (OK)</label>
+        <p class="muted" style="margin:0;font-size:.85rem">Flagged: ${App.esc((s.review_reasons || []).join(', '))}</p>` : ''}
+      <p class="muted" style="font-size:.85rem">Cancelled or refunded sales earn no commission, give the product back to stock and are left out of all totals.</p>`,
+      async reason => {
+        const tx = dlg.querySelector('#dTx').value, pay = dlg.querySelector('#dPay').value;
+        const bal = Number(dlg.querySelector('#dBal').value) || 0, due = dlg.querySelector('#dDue').value || null;
+        if (pay !== 'Paid' && (bal <= 0 || !due)) return 'For Partial or Outstanding, please enter the balance owed and the due date.';
+        const upd = { transaction_status: tx, payment_status: pay, balance_due: pay === 'Paid' ? 0 : bal,
+                      due_date: pay === 'Paid' ? null : due };
+        const reviewed = dlg.querySelector('#dReviewed')?.checked;
+        const changed = tx !== s.transaction_status || pay !== s.payment_status ||
+          upd.balance_due !== Number(s.balance_due) || (upd.due_date || null) !== (s.due_date || null);
+        if (!changed && !reviewed) return 'Nothing changed.';
+        if (reviewed && !changed) upd.status = 'OK';
+        if (me.role === 'manager') upd.change_reason = reason;
+        let { error } = await sb.from('sales').update(upd).eq('id', id);
+        if (!error && reviewed && changed && me.role === 'owner') ({ error } = await sb.from('sales').update({ status: 'OK' }).eq('id', id));
+        return error && App.friendlyError(error);
+      });
+  }
+
+  function editStock(id) {
+    const s = data.stock.find(x => x.id === id);
+    openDlg(`Stock issue · ${s.product}`, `
+      <label>Stock issue status</label><select id="dIssue">${opts(['OK', 'Damaged', 'Expired', 'Missing', 'Recount needed'], s.issue_status)}</select>
+      <label>Note</label><input id="dNote" type="text" value="${App.esc(s.issue_note || '')}" placeholder="e.g. 2 bottles broken">`,
+      async reason => {
+        const note = [dlg.querySelector('#dNote').value.trim(), reason].filter(Boolean).join(' · ');
+        const { error } = await sb.rpc('set_stock_issue', { p_stock: id, p_status: dlg.querySelector('#dIssue').value, p_note: note });
+        return error && App.friendlyError(error);
+      });
+  }
+
+  function editCustomer(id) {
+    const c = data.customers.find(x => x.id === id);
+    openDlg(`Customer · ${c.name}`, `
+      <div class="grid2">
+        <div><label>Customer status</label><select id="dCs">${opts(['New', 'Active', 'Follow-up', 'Inactive'], c.customer_status)}</select></div>
+        <div><label>VIP</label><select id="dVip"><option value="no">No</option><option value="yes" ${c.is_vip ? 'selected' : ''}>Yes</option></select></div>
+        <div><label>Phone</label><input id="dPhone" type="tel" value="${App.esc(c.phone || '')}"></div>
+        <div><label>Birthday</label><input id="dBday" type="date" value="${c.birthday || ''}"></div>
+      </div>
+      <label>Notes</label><input id="dCNotes" type="text" value="${App.esc(c.notes || '')}">`,
+      async reason => {
+        const upd = { customer_status: dlg.querySelector('#dCs').value, is_vip: dlg.querySelector('#dVip').value === 'yes',
+          phone: dlg.querySelector('#dPhone').value.trim() || null, birthday: dlg.querySelector('#dBday').value || null,
+          notes: dlg.querySelector('#dCNotes').value.trim() || null };
+        if (upd.customer_status === c.customer_status && upd.is_vip === c.is_vip && upd.phone === (c.phone || null) &&
+            upd.birthday === (c.birthday || null) && upd.notes === (c.notes || null)) return 'Nothing changed.';
+        if (me.role === 'manager') upd.change_reason = reason;
+        const { error } = await sb.from('customers').update(upd).eq('id', id);
+        return error && App.friendlyError(error);
+      });
   }
 
   function drawTrend(labels, values) {
@@ -297,11 +409,9 @@
     chart = new Chart($('trend'), {
       type: 'bar',
       data: { labels, datasets: [{ label: 'Sales (RM)', data: values, backgroundColor: '#0f766e', borderRadius: 6 }] },
-      options: {
-        maintainAspectRatio: false,
+      options: { maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => App.rm(c.parsed.y) } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString('en-MY') } } },
-      },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString('en-MY') } } } },
     });
   }
 </script>

@@ -25,6 +25,10 @@
     .static { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 600; }
     .sub-head { font-weight: 600; margin: 16px 0 0; }
     .pkgrow { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+    .cust-results { border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; max-height: 240px; overflow: auto; }
+    .cust-results button { display: block; width: 100%; text-align: left; background: #fff; color: var(--text);
+                           border-bottom: 1px solid var(--line); border-radius: 0; font-weight: 400; padding: 9px 12px; }
+    .cust-results button:hover { background: var(--bg); }
   </style>
 </head>
 <body>
@@ -63,6 +67,10 @@
 
       <fieldset>
         <legend>Customer</legend>
+        <label for="custFind">Find existing customer <span class="muted">(name or phone)</span></label>
+        <input id="custFind" type="search" autocomplete="off" placeholder="Type at least 2 letters or digits">
+        <div id="custResults" class="cust-results hidden"></div>
+        <div id="custPicked" class="msg"></div>
         <div class="grid2">
           <div>
             <label for="customerName" class="req">Customer name</label>
@@ -71,6 +79,10 @@
           <div>
             <label for="phone">Phone</label>
             <input id="phone" type="tel" inputmode="tel" placeholder="012-345 6789" autocomplete="off">
+          </div>
+          <div id="bdayBox">
+            <label for="birthday">Birthday <span class="muted">(new customers, optional)</span></label>
+            <input id="birthday" type="date">
           </div>
         </div>
       </fieldset>
@@ -127,6 +139,20 @@
           <div>
             <label for="paymentMethod">Payment method</label>
             <select id="paymentMethod"></select>
+          </div>
+          <div>
+            <label for="paymentStatus">Payment status</label>
+            <select id="paymentStatus">
+              <option>Paid</option><option>Partial</option><option>Outstanding</option>
+            </select>
+          </div>
+          <div class="payMore hidden">
+            <label for="balanceDue" class="req">Balance still owed RM</label>
+            <input id="balanceDue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+          <div class="payMore hidden">
+            <label for="dueDate" class="req">Due date</label>
+            <input id="dueDate" type="date">
           </div>
         </div>
 
@@ -369,6 +395,48 @@
     .forEach(id => $(id).addEventListener('input', update));
   ['consultant', 'leadSource', 'serviceStaff', 'serviceStaff2'].forEach(id => $(id).addEventListener('change', update));
 
+  // ---------- Customer search ----------
+  let customerId = null, findTimer = null;
+  $('custFind').addEventListener('input', () => {
+    clearTimeout(findTimer);
+    const q = $('custFind').value.trim();
+    if (q.length < 2) { $('custResults').classList.add('hidden'); return; }
+    findTimer = setTimeout(async () => {
+      const { data, error } = await sb.rpc('find_customers', { p_q: q });
+      if (error) { $('custResults').innerHTML = `<p class="msg error">${App.esc(App.friendlyError(error))}</p>`; }
+      else if (!data.length) { $('custResults').innerHTML = '<p class="empty" style="padding:8px 12px">No match. Type the name and phone below for a new customer.</p>'; }
+      else {
+        $('custResults').innerHTML = data.map((c, i) => `<button type="button" data-i="${i}">
+          <strong>${App.esc(c.name)}</strong>${c.is_vip ? ' · VIP' : ''} <span class="muted">${App.esc(c.phone || '')}</span><br>
+          <span class="muted" style="font-size:.82rem">${App.esc(c.home_outlet || '')} · ${c.visits} visit${c.visits === 1 ? '' : 's'}
+          ${c.last_visit ? '· last ' + App.date(c.last_visit) : ''} · ${App.esc(c.customer_status)}</span></button>`).join('');
+        $('custResults').querySelectorAll('button').forEach(b => b.addEventListener('click', () => pickCustomer(data[Number(b.dataset.i)])));
+      }
+      $('custResults').classList.remove('hidden');
+    }, 300);
+  });
+  function pickCustomer(c) {
+    customerId = c.id;
+    $('customerName').value = c.name;
+    $('phone').value = c.phone || '';
+    if (!$('leadSource').value && c.lead_source && [...$('leadSource').options].some(o => o.value === c.lead_source)) $('leadSource').value = c.lead_source;
+    $('custResults').classList.add('hidden');
+    $('custFind').value = '';
+    $('bdayBox').classList.add('hidden');
+    App.showMsg($('custPicked'), `Returning customer: ${c.name}${c.is_vip ? ' (VIP)' : ''} · ${c.visits} visit${c.visits === 1 ? '' : 's'}, ` +
+      `total spend ${App.rm(c.total_spend)}${c.birthday ? ' · birthday ' + App.date(c.birthday) : ''}`, 'ok');
+    update();
+  }
+  // Typing a different name/phone means a different (or new) customer
+  ['customerName', 'phone'].forEach(id => $(id).addEventListener('input', () => {
+    if (customerId) { customerId = null; App.showMsg($('custPicked'), ''); $('bdayBox').classList.remove('hidden'); }
+  }));
+
+  // ---------- Payment status ----------
+  $('paymentStatus').addEventListener('change', () => {
+    document.querySelectorAll('.payMore').forEach(el => el.classList.toggle('hidden', $('paymentStatus').value === 'Paid'));
+  });
+
   const voucherUsed = () => document.querySelector('input[name=voucher]:checked').value === 'yes';
   const paid = () => num('treatmentAmount') + num('productAmount');
 
@@ -426,6 +494,11 @@
       return App.showMsg(msg, 'Please enter which treatment or package was sold.', 'error');
     if (num('serviceAmount') > 0 && !$('service').value.trim())
       return App.showMsg(msg, 'Please enter which treatment was done.', 'error');
+    const payStatus = $('paymentStatus').value;
+    if (payStatus !== 'Paid') {
+      if (!(num('balanceDue') > 0)) return App.showMsg(msg, 'Please enter the balance still owed.', 'error');
+      if (!$('dueDate').value) return App.showMsg(msg, 'Please enter the due date for the balance.', 'error');
+    }
     if ($('serviceStaff2').value) {
       if (!$('serviceStaff').value) return App.showMsg(msg, 'Please pick the 1st beautician before the 2nd.', 'error');
       if ($('serviceStaff2').value === $('serviceStaff').value)
@@ -464,9 +537,21 @@
       lead_source: $('leadSource').value || null,
       campaign: $('campaign').value.trim() || null,
       notes: $('notes').value.trim() || null,
+      customer_id: customerId,
+      payment_status: payStatus,
+      balance_due: payStatus === 'Paid' ? 0 : num('balanceDue'),
+      due_date: payStatus === 'Paid' ? null : $('dueDate').value,
     };
 
     $('saveBtn').disabled = true; $('saveBtn').textContent = 'Saving…';
+    // New customer with a birthday: create the customer record first so the birthday is kept
+    if (!customerId && $('birthday').value) {
+      const { data: c, error: ce } = await sb.from('customers').insert({
+        name: row.customer_name, phone: row.phone, birthday: $('birthday').value, home_outlet: row.outlet,
+        lead_source: row.lead_source, referred_by: row.referred_by }).select('id').single();
+      if (ce) { $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save'; return App.showMsg(msg, App.friendlyError(ce), 'error'); }
+      row.customer_id = c.id;
+    }
     const { data, error } = await sb.from('sales').insert(row)
       .select('id, total_sale, status, review_reasons').single();
     $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save';
@@ -480,8 +565,11 @@
     // Clear the form for the next customer (keep date, outlet & staff)
     ['customerName', 'phone', 'treatment', 'treatmentAmount', 'productAmount', 'productQty', 'discount',
      'service', 'serviceAmount', 'pkgPrice', 'pkgSessions',
-     'voucherCode', 'referredBy', 'campaign', 'notes'].forEach(id => $(id).value = '');
+     'voucherCode', 'referredBy', 'campaign', 'notes', 'birthday', 'balanceDue', 'dueDate'].forEach(id => $(id).value = '');
     ['product', 'leadSource', 'paymentMethod', 'serviceStaff2', 'serviceRate2'].forEach(id => $(id).value = '');
+    $('paymentStatus').value = 'Paid';
+    document.querySelectorAll('.payMore').forEach(el => el.classList.add('hidden'));
+    customerId = null; App.showMsg($('custPicked'), ''); $('bdayBox').classList.remove('hidden');
     $('pkgHint').textContent = '';
     document.querySelector('input[name=voucher][value=no]').checked = true;
     $('voucherCodeBox').classList.add('hidden');

@@ -105,6 +105,25 @@
       <div class="msg" id="msgOptions"></div>
     </div>
 
+    <!-- Colour rules -->
+    <div class="card section">
+      <h2>Colour rules &amp; alerts</h2>
+      <p class="muted" style="margin:0"><strong style="color:#b91c1c">Red</strong> = Act now ·
+        <strong style="color:#b45309">Amber</strong> = Watch. Leave a box empty to switch that rule off.</p>
+      <div class="grid2">
+        <div><label for="crCrit">Red: critical low stock at or below (% of reorder level)</label><input id="crCrit" type="number" min="0" max="100" step="1"></div>
+        <div><label for="crOverdue">Red: payment overdue after due date + (days)</label><input id="crOverdue" type="number" min="0" step="1"></div>
+        <div><label for="crTarget">Amber: branch below (%) of where the target should be by today</label><input id="crTarget" type="number" min="0" max="100" step="1"></div>
+        <div><label for="crDisc">Amber: unusually high discount above (%)</label><input id="crDisc" type="number" min="0" max="100" step="1"></div>
+        <div><label for="crLook">Alerts look back over the last (days)</label><input id="crLook" type="number" min="1" step="1"></div>
+        <div><label for="crChg">Staff told when their sale is changed, within (days)</label><input id="crChg" type="number" min="1" step="1"></div>
+      </div>
+      <label for="ownerWa">Owner's WhatsApp number (for managers' "Send WhatsApp to owner" buttons)</label>
+      <input id="ownerWa" type="tel" placeholder="012-345 6789" style="max-width:260px">
+      <div><button type="button" class="save" id="saveColours">Save colour rules</button></div>
+      <div class="msg" id="msgColours"></div>
+    </div>
+
     <!-- 6. Review rules -->
     <div class="card section">
       <h2>Review rules</h2>
@@ -167,6 +186,13 @@
     // Options
     $('oLead').value = (S.lead_sources || []).join('\n');
     $('oVoucher').value = (S.voucher_types || []).join('\n');
+
+    // Colour rules
+    const cr = S.colour_rules || {};
+    [['crCrit', 'critical_stock_pct'], ['crOverdue', 'overdue_days'], ['crTarget', 'target_warning_pct'],
+     ['crDisc', 'high_discount_pct'], ['crLook', 'alert_lookback_days'], ['crChg', 'changed_sale_days']]
+      .forEach(([id, k]) => $(id).value = cr[k] ?? '');
+    $('ownerWa').value = (S.owner_whatsapp || {}).number || '';
 
     // Rules
     const rr = S.review_rules || {};
@@ -324,6 +350,24 @@
     if (!lead.length) return App.showMsg($('msgOptions'), 'Please keep at least one lead source.', 'error');
     if (await saveSetting('lead_sources', lead, $('msgOptions'), e.target))
       await saveSetting('voucher_types', voucher, $('msgOptions'), e.target);
+  });
+
+  // ---------- Colour rules ----------
+  $('saveColours').addEventListener('click', async e => {
+    const msg = $('msgColours');
+    const out = {};
+    const fields = [['crCrit', 'critical_stock_pct', 100], ['crOverdue', 'overdue_days'], ['crTarget', 'target_warning_pct', 100],
+                    ['crDisc', 'high_discount_pct', 100], ['crLook', 'alert_lookback_days'], ['crChg', 'changed_sale_days']];
+    for (const [id, k, max] of fields) {
+      const v = $(id).value;
+      if (v === '') continue;                      // empty = rule switched off
+      if (!numOk(v, max)) return App.showMsg(msg, 'Please enter numbers of 0 or more (percentages up to 100).', 'error');
+      out[k] = Number(v);
+    }
+    const wa = $('ownerWa').value.trim();
+    if (wa && wa.replace(/\D/g, '').length < 9) return App.showMsg(msg, "Please enter the owner's full phone number.", 'error');
+    if (await saveSetting('colour_rules', out, msg, e.target))
+      await saveSetting('owner_whatsapp', { number: wa }, msg, e.target);
   });
 
   // ---------- Review rules ----------
