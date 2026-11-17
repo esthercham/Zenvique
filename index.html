@@ -115,7 +115,7 @@
     { name: 'Owner Dashboard',        note: 'Compare all outlets',                    roles: ['owner'] },
     { name: 'HQ Stock & Transfers',   note: 'Move stock from HQ',                     roles: ['owner'] },
     { name: 'Settings',               note: 'Outlets, items, commission %, rules',    roles: ['owner'] },
-    { name: 'Users & Roles',          note: 'Set role, outlet, active',               roles: ['owner'] },
+    { name: 'Users & Roles',          note: 'Set role, outlet, active',               roles: ['owner'], href: 'users.html' },
   ];
 
   // ---------- Tabs ----------
@@ -226,7 +226,9 @@
       }
       $('menu').innerHTML = SCREENS
         .filter(s => s.roles.includes(profile.role))
-        .map(s => `<li class="soon"><strong>${App.esc(s.name)}</strong><small>${App.esc(s.note)} · coming soon</small></li>`)
+        .map(s => s.href
+          ? `<li class="live"><a href="${s.href}"><strong>${App.esc(s.name)}</strong><small>${App.esc(s.note)}</small></a></li>`
+          : `<li class="soon"><strong>${App.esc(s.name)}</strong><small>${App.esc(s.note)} · coming soon</small></li>`)
         .join('');
     }
     show('homeView');

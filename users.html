@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Users & Roles · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+    .toolbar input { flex: 1 1 220px; }
+    .toolbar select { flex: 0 1 180px; width: auto; }
+    .users { display: grid; gap: 10px; }
+    .user { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fff; }
+    .user.off { background: #fafafa; }
+    .user-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+    .user-head strong { font-size: 1.05rem; }
+    .fields { display: grid; gap: 10px; grid-template-columns: 1fr 1fr auto auto; align-items: end; margin-top: 10px; }
+    .fields label { margin: 0 0 4px; font-size: .8rem; }
+    .fields button { padding: 10px 14px; }
+    .switch { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: .9rem; padding: 10px 0; }
+    .switch input { width: 18px; height: 18px; }
+    .tag-off { color: var(--danger); font-weight: 600; font-size: .85rem; }
+    @media (max-width: 640px) {
+      .fields { grid-template-columns: 1fr 1fr; }
+      .fields .switch { grid-column: 1; }
+      .fields button { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">Users &amp; Roles</h1>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin:0">
+        Set each person's role and outlet. Staff and managers need an outlet before they can record sales.
+        Switch someone <strong>off</strong> when they leave. They won't be able to see anything, but their past sales stay.
+      </p>
+
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search name or email">
+        <select id="filterRole">
+          <option value="">All roles</option>
+          <option value="owner">Owner</option>
+          <option value="manager">Manager</option>
+          <option value="staff">Staff</option>
+          <option value="noOutlet">Needs an outlet</option>
+          <option value="off">Switched off</option>
+        </select>
+      </div>
+
+      <div id="pageMsg" class="msg"></div>
+      <div id="users" class="users"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let me = null;
+  let outlets = [];
+  let people = [];
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+  $('search').addEventListener('input', render);
+  $('filterRole').addEventListener('change', render);
+
+  (async () => {
+    me = await App.requireRole(['owner']);
+    try {
+      const [{ data: s, error: e1 }, { data: p, error: e2 }] = await Promise.all([
+        sb.from('settings').select('value').eq('key', 'outlets').maybeSingle(),
+        sb.from('profiles').select('id, email, full_name, role, outlet, active, created_at').order('created_at'),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      outlets = Array.isArray(s?.value) ? s.value : [];
+      people = p || [];
+      render();
+    } catch (err) {
+      $('users').innerHTML = '';
+      App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
+    }
+  })();
+
+  function render() {
+    const q = $('search').value.trim().toLowerCase();
+    const f = $('filterRole').value;
+    const list = people.filter(p => {
+      if (q && !((p.full_name || '') + ' ' + (p.email || '')).toLowerCase().includes(q)) return false;
+      if (f === 'off') return !p.active;
+      if (f === 'noOutlet') return p.role !== 'owner' && !p.outlet;
+      if (f) return p.role === f;
+      return true;
+    });
+
+    if (!list.length) {
+      $('users').innerHTML = '<p class="muted">No one matches.</p>';
+      return;
+    }
+
+    $('users').innerHTML = list.map(p => {
+      const isMe = p.id === me.id;
+      const outletOpts = ['<option value="">— No outlet —</option>']
+        .concat(outlets.map(o => `<option ${o === p.outlet ? 'selected' : ''}>${App.esc(o)}</option>`))
+        .concat(p.outlet && !outlets.includes(p.outlet)
+          ? [`<option selected>${App.esc(p.outlet)}</option>`] : [])
+        .join('');
+      const roleOpts = ['staff', 'manager', 'owner']
+        .map(r => `<option value="${r}" ${r === p.role ? 'selected' : ''}>${App.roleLabel(r)}</option>`).join('');
+      const warn = !p.active ? '<span class="tag-off">Switched off</span>'
+        : (p.role !== 'owner' && !p.outlet ? '<span class="badge">Needs an outlet</span>' : '');
+      return `
+        <div class="user ${p.active ? '' : 'off'}" data-id="${p.id}">
+          <div class="user-head">
+            <div><strong>${App.esc(p.full_name || '(no name)')}</strong>${isMe ? ' <span class="muted">(you)</span>' : ''}<br>
+              <span class="muted">${App.esc(p.email)} · joined ${App.date(p.created_at)}</span></div>
+            <div>${warn}</div>
+          </div>
+          <div class="fields">
+            <div><label>Role</label><select class="f-role" ${isMe ? 'disabled' : ''}>${roleOpts}</select></div>
+            <div><label>Outlet</label><select class="f-outlet">${outletOpts}</select></div>
+            <label class="switch"><input type="checkbox" class="f-active" ${p.active ? 'checked' : ''} ${isMe ? 'disabled' : ''}> Active</label>
+            <button type="button" class="f-save">Save</button>
+          </div>
+          <div class="msg"></div>
+        </div>`;
+    }).join('');
+
+    document.querySelectorAll('.user .f-save').forEach(btn => btn.addEventListener('click', save));
+  }
+
+  async function save(e) {
+    const card = e.target.closest('.user');
+    const id = card.dataset.id;
+    const person = people.find(p => p.id === id);
+    const msgEl = card.querySelector('.msg');
+    const role = card.querySelector('.f-role').value;
+    const outlet = card.querySelector('.f-outlet').value || null;
+    const active = card.querySelector('.f-active').checked;
+
+    if (id === me.id && (role !== 'owner' || !active)) {
+      return App.showMsg(msgEl, "You can't remove your own Owner role or switch yourself off.", 'error');
+    }
+    if (role !== 'owner' && active && !outlet) {
+      App.showMsg(msgEl, 'Tip: staff and managers need an outlet before they can record sales.', 'info');
+    }
+    if (person.role === role && person.outlet === outlet && person.active === active) {
+      return App.showMsg(msgEl, 'Nothing changed.', 'info');
+    }
+    if (role === 'owner' && person.role !== 'owner' &&
+        !confirm(`Make ${person.full_name || person.email} an Owner? Owners can see and change everything.`)) {
+      return;
+    }
+
+    e.target.disabled = true;
+    const { error } = await sb.from('profiles').update({ role, outlet, active }).eq('id', id);
+    e.target.disabled = false;
+    if (error) return App.showMsg(msgEl, App.friendlyError(error), 'error');
+
+    Object.assign(person, { role, outlet, active });
+    render();
+    const again = document.querySelector(`.user[data-id="${id}"] .msg`);
+    App.showMsg(again, 'Saved.', 'ok');
+  }
+</script>
+</body>
+</html>

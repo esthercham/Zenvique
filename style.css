@@ -75,6 +75,10 @@ button.ghost:hover { background: var(--bg); }
 .menu { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .menu li { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: #fff; }
 .menu li.soon { color: var(--muted); }
+.menu li.live { padding: 0; border-color: var(--brand); }
+.menu li.live a { display: block; padding: 12px 14px; color: var(--text); text-decoration: none; border-radius: 10px; }
+.menu li.live a:hover { background: var(--ok-bg); }
+.menu li.live strong { color: var(--brand); }
 .menu li small { display: block; color: var(--muted); }
 .muted { color: var(--muted); }
 .link { background: none; border: 0; color: var(--brand); padding: 0; font-weight: 600; cursor: pointer; }
