@@ -26,7 +26,7 @@ Zenvique has several outlets and one HQ store. This system lets us:
 | **Sales** – add | Yes (for their outlet) | Yes (their outlet) | Yes (any outlet) |
 | **Sales** – edit | Only sales they typed in | Any sale at their outlet, **but the change waits for owner approval** | Any sale (changes apply straight away). Approves or rejects manager changes |
 | **Sales** – delete | No | No | Yes |
-| **Commission** – see | **Only their own share** | Everyone at their outlet | Everyone |
+| **Commission** – see | **Only their own share** | **Only their own share** | Everyone |
 | **Stock** – see | No | Their outlet only | HQ + every outlet + grand total |
 | **Stock** – count / adjust | No | Their outlet only | Anywhere |
 | **Stock** – move from HQ to an outlet | No | No | Yes |
@@ -105,7 +105,7 @@ Consultant, Beautician(s) and Product Seller are kept **separately** because the
 | Login | ✓ | ✓ | ✓ |
 | **New Sale**: outlet, customer, *Paid today* (treatment, product, consultant, seller, discount, payment) and/or *Service done today* (treatment done, session amount, beautician(s) and rate), voucher, referral, lead source | ✓ | ✓ | ✓ |
 | **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
-| **Outlet Dashboard**: daily and monthly sales, staff performance, treatment vs product, lead source / voucher / referral results | | ✓ | ✓ (pick any outlet) |
+| **Manager Dashboard** (own outlet only): Branch Total Sales, Sales Target Achievement % (target, actual, remaining), My Personal Sales (sales where I am the Consultant, still counted in the branch total), Sales Volume, Treatment Sales; then Product Sales, Service Done, New Customers, Low Stock, 6-month trend, treatment / product breakdown, lead source, referral source, voucher usage, stock inventory, alerts. No other staff's commission, no other outlets | | ✓ | ✓ (pick any outlet) |
 | **Review List**: sales marked "Needs review" or "Pending approval". Manager fixes the sale; owner sees old vs new side by side and clicks Approve or Reject | | ✓ (fix) | ✓ (approve / reject) |
 | **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |
 | **Owner Dashboard**: compare all outlets, all staff commission, lead-source breakdown | | | ✓ |
@@ -135,6 +135,9 @@ Every screen works on a phone.
 | Moving stock from HQ to an outlet | lowers HQ stock and raises outlet stock by the same amount |
 | Every sale must belong to an outlet | the sale can't be saved without one |
 | Manager's change to a sale | totals, commission and stock change **only after** the owner approves |
+| Monthly sales target | set by the owner per outlet per month (Settings); managers can only see it. Achievement % = branch sales ÷ target |
+| New customer | a customer (matched by phone, or by name if no phone) whose **first visit to that outlet** is in the chosen month |
+| Sales Volume | number of transactions with money paid (package sessions with RM 0.00 paid are counted as Service Done instead) |
 
 A sale is marked **"Needs review"** when any of these happen:
 
