@@ -14,6 +14,9 @@
     .card-head h2 { margin: 0; }
     .card-head input { max-width: 240px; }
     td .small { white-space: nowrap; }
+    .brief { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
+    .brief-text { white-space: pre-wrap; margin: 8px 0 0; font-size: .92rem; max-height: 220px; overflow: auto; }
+    .brief-text.open { max-height: none; }
     .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
     @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
   </style>
@@ -65,6 +68,43 @@
       <div class="kpi minor"><div class="label">Balance Owed</div><div class="value" id="kOwed">–</div><div class="small" id="kOwedN"></div></div>
       <div class="kpi minor"><div class="label">New Customers</div><div class="value" id="kNew">–</div><div class="small">first visit to this outlet</div></div>
       <div class="kpi minor"><div class="label">Low Stock Items</div><div class="value" id="kLow">–</div></div>
+    </div>
+
+    <!-- AI Morning Brief -->
+    <div class="card section" id="briefCard">
+      <h2>AI Morning Brief</h2>
+      <p class="muted" style="margin:0">
+        Builds a question for Claude from <strong>only the records shown on this page</strong> with your current filters,
+        plus today's date, this outlet and the rules in Settings. Customer phone numbers are never included.
+        You run it in Claude, check the answer, then save it here.
+      </p>
+      <button type="button" id="prepBrief" style="margin-top:12px">Prepare AI Morning Brief</button>
+      <div id="briefWork" class="hidden">
+        <p class="muted" id="briefInfo" style="margin:12px 0 0;font-size:.88rem"></p>
+        <label for="briefPrompt">Prompt for Claude</label>
+        <textarea id="briefPrompt" readonly rows="9" style="font-family:ui-monospace,Consolas,monospace;font-size:.82rem"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button type="button" id="copyPrompt">Copy Prompt</button>
+          <a class="btn ghost" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude</a>
+        </div>
+        <div id="copyMsg" class="msg"></div>
+        <label for="briefResp">Paste Claude's checked response</label>
+        <textarea id="briefResp" rows="9" placeholder="Paste the brief here after you have checked it against the records."></textarea>
+        <label style="display:flex;gap:8px;align-items:center;font-weight:600">
+          <input type="checkbox" id="briefChecked" style="width:18px;height:18px"> I have checked this brief
+        </label>
+        <button type="button" id="saveBrief" disabled>Save Brief</button>
+        <div id="briefMsg" class="msg"></div>
+      </div>
+
+      <div class="card-head" style="margin-top:20px">
+        <h3 style="margin:0">Last 5 saved briefs</h3>
+        <select id="briefScope" class="hidden" style="width:auto">
+          <option value="outlet">This outlet</option>
+          <option value="all">All outlets</option>
+        </select>
+      </div>
+      <div id="briefList"><p class="empty">Loading…</p></div>
     </div>
 
     <!-- Sales records with statuses -->
@@ -141,7 +181,8 @@
       return;
     }
     try {
-      const { data: s, error } = await sb.from('settings').select('key, value').in('key', ['outlets', 'sales_targets', 'owner_whatsapp']);
+      const { data: s, error } = await sb.from('settings').select('key, value')
+        .in('key', ['outlets', 'sales_targets', 'owner_whatsapp', 'colour_rules', 'review_rules', 'commission']);
       if (error) throw error;
       (s || []).forEach(r => settings[r.key] = r.value);
     } catch (err) { return App.showMsg($('pageMsg'), App.friendlyError(err), 'error'); }
@@ -160,6 +201,11 @@
     $('month').value = App.ym(App.todayKL());
     $('month').max = App.ym(App.todayKL());
     $('month').addEventListener('change', load);
+    if (me.role === 'owner') { $('briefScope').classList.remove('hidden'); $('briefScope').addEventListener('change', loadBriefs); }
+    $('prepBrief').addEventListener('click', prepareBrief);
+    $('copyPrompt').addEventListener('click', copyPrompt);
+    $('briefChecked').addEventListener('change', () => { $('saveBrief').disabled = !$('briefChecked').checked; });
+    $('saveBrief').addEventListener('click', saveBrief);
     $('salesSearch').addEventListener('input', () => data && renderSales());
     $('custSearch').addEventListener('input', () => data && renderCustomers());
     load();
@@ -173,7 +219,7 @@
     $('subtitle').textContent = `${outlet} · ${App.monthLabel(month)}`;
     App.showMsg($('pageMsg'), '');
     try {
-      const [hist, stock, customers, alerts] = await Promise.all([
+      const [hist, stock, customers, alerts, people] = await Promise.all([
         App.fetchAll(() => sb.from('sales').select(SALE_COLS).eq('outlet', outlet)
           .lte('sale_date', App.monthEnd(month)).order('sale_date').order('id')),
         App.fetchAll(() => sb.from('stock').select('id, product, quantity, reorder_level, issue_status, issue_note, proposed_issue_status')
@@ -181,10 +227,14 @@
         App.fetchAll(() => sb.from('customers').select('id, name, phone, birthday, home_outlet, customer_status, is_vip, visits, ' +
           'total_spend, last_visit, notes, proposed_change').order('last_visit', { ascending: false, nullsFirst: false }).order('id')),
         App.loadAlerts(),
+        App.fetchAll(() => sb.from('profiles').select('id, full_name, email, role, outlet, active').order('full_name')),
       ]);
       const myAlerts = alerts.filter(a => !a.outlet || a.outlet === outlet);
-      data = { outlet, month, hist, stock, customers, alerts: myAlerts, levels: App.alertLevels(myAlerts) };
+      data = { outlet, month, hist, stock, customers, alerts: myAlerts, levels: App.alertLevels(myAlerts),
+               names: new Map(people.map(p => [p.id, p.full_name || p.email])),
+               team: people.filter(p => p.active && (p.outlet === outlet || p.role === 'owner')) };
       render();
+      loadBriefs();
     } catch (err) {
       App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
     }
@@ -282,6 +332,7 @@
     const q = $('salesSearch').value.trim().toLowerCase();
     const rows = hist.filter(s => App.ym(s.sale_date) === month && (!q || (s.customer_name || '').toLowerCase().includes(q)))
       .sort((a, b) => b.sale_date.localeCompare(a.sale_date));
+    data.visibleSales = rows;
     table($('tblSales'),
       [{ t: 'Date' }, { t: 'Customer' }, { t: 'What' }, { t: 'Paid', num: 1 }, { t: 'Transaction' }, { t: 'Payment' }, { t: 'Review' }, { t: '' }],
       rows.map(s => {
@@ -301,6 +352,7 @@
   function renderCustomers() {
     const q = $('custSearch').value.trim().toLowerCase();
     const list = data.customers.filter(c => !q || (c.name + ' ' + (c.phone || '')).toLowerCase().includes(q)).slice(0, 60);
+    data.visibleCustomers = list;
     table($('tblCust'),
       [{ t: 'Customer' }, { t: 'Status' }, { t: 'Birthday' }, { t: 'Visits', num: 1 }, { t: 'Total spend', num: 1 }, { t: 'Last visit' }, { t: '' }],
       list.map(c => [
@@ -310,6 +362,175 @@
         `<button type="button" class="small ghost" data-cust="${c.id}">Update</button>`]),
       q ? 'No customer matches.' : 'No customers yet.', list.map(c => App.rowClass(data.levels, c.id)));
     document.querySelectorAll('[data-cust]').forEach(b => b.addEventListener('click', () => editCustomer(b.dataset.cust)));
+  }
+
+  // ---------- AI Morning Brief ----------
+  const rid = (p, id) => `${p}-${String(id).replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+  const kpi = id => $(id).innerText.replace(/\s+/g, ' ').trim();
+  let lastFilters = null;
+
+  function prepareBrief() {
+    if (!data) return;
+    const today = App.todayKL();
+    const sales = data.visibleSales || [], cust = data.visibleCustomers || [], stock = data.stock, alerts = data.alerts;
+    const MAX = 300;
+    const name = id => id ? (data.names.get(id) || 'Unknown staff') : '—';
+    const cr = settings.colour_rules || {}, rr = settings.review_rules || {}, cm = settings.commission || {};
+    const target = Number(((settings.sales_targets || {})[data.month] || {})[data.outlet] || 0);
+    const idOf = new Map();
+    sales.forEach(s => idOf.set(String(s.id), rid('S', s.id)));
+    stock.forEach(s => idOf.set(String(s.id), rid('K', s.id)));
+    data.customers.forEach(c => idOf.set(String(c.id), rid('C', c.id)));
+    const bday = c => c.birthday && c.birthday.slice(5, 7) === today.slice(5, 7) ? 'birthday this month' : '';
+
+    lastFilters = {
+      outlet: data.outlet, month: data.month, today,
+      sales_search: $('salesSearch').value.trim() || null,
+      customer_search: $('custSearch').value.trim() || null,
+      records: { sales: Math.min(sales.length, MAX), stock: stock.length, customers: cust.length, alerts: alerts.length },
+    };
+
+    const lines = [];
+    lines.push(`You are helping the branch manager of ZENVIQUE ${data.outlet} plan today.`,
+      `Today is ${App.date(today)}. The records below are ALL you know. They are what the manager sees on screen for ${App.monthLabel(data.month)}` +
+      `${lastFilters.sales_search ? ` (sales filtered by "${lastFilters.sales_search}")` : ''}` +
+      `${lastFilters.customer_search ? ` (customers filtered by "${lastFilters.customer_search}")` : ''}.`,
+      '',
+      'STRICT RULES',
+      '- Use ONLY the records below. Do not invent customers, staff, amounts, dates or reasons.',
+      '- After EVERY factual statement, put the record ID(s) it came from in square brackets, e.g. [S-1A2B3C] or [K-9F8E7D].',
+      '- If something is not in the records, write "Not in the records" instead of guessing.',
+      '- Only name people who appear in the TEAM list or the records.',
+      '',
+      'RETURN EXACTLY THIS FORMAT',
+      'HEADLINE: one line summarising the branch situation today',
+      'TOP 3 ACTIONS FOR TODAY:',
+      '1. <action> | Who: <name and role> | Why: <reason> [record IDs]',
+      '2. ...',
+      '3. ...',
+      'WATCH LIST (not urgent yet, but needs attention):',
+      '- <item> | Why: <reason> [record IDs]',
+      '',
+      'BUSINESS RULES (from Owner Settings)',
+      `- Red = Act now: stock at or below ${cr.critical_stock_pct ?? '–'}% of reorder level (or 0); payment overdue ${cr.overdue_days ?? '–'} day(s) after due date; incomplete sale; missing Consultant / Beautician / Product Seller; commission error.`,
+      `- Amber = Watch: stock at reorder level; branch below ${cr.target_warning_pct ?? '–'}% of where target should be by today; partial payment; Needs Review; missing lead source / referral / voucher details; discount above ${cr.high_discount_pct ?? '–'}%.`,
+      `- Needs review: discount above ${rr.big_discount_pct ?? '–'}% or sale above RM ${rr.large_sale_rm ?? '–'}.`,
+      `- Commission: Consultant ${cm.consultant_pct ?? '–'}% of treatment, Product Seller ${cm.product_seller_pct ?? '–'}% of product (after discount).`,
+      `- Monthly sales target for ${data.outlet}: ${target ? App.rm(target) : 'not set'}.`,
+      '',
+      'TEAM AT THIS OUTLET',
+      ...data.team.map(p => `- ${p.full_name || p.email} (${App.roleLabel(p.role)})`),
+      '',
+      'KEY NUMBERS ON SCREEN [KPI]',
+      `- Branch total sales: ${kpi('kTotal')} (${kpi('kTotalVs')})`,
+      `- Target achievement: ${kpi('kPct')}. ${kpi('kTarget')}`,
+      `- Sales volume: ${kpi('kVol')} · Treatment: ${kpi('kTrt')} · Product: ${kpi('kProd')} · Service done: ${kpi('kSvc')}`,
+      `- Balance owed: ${kpi('kOwed')} (${kpi('kOwedN')}) · New customers: ${kpi('kNew')} · Low stock items: ${kpi('kLow')}`,
+      '',
+      `ALERTS (${alerts.length})`,
+      ...(alerts.length ? alerts.map((a, i) => `[A-${i + 1}] ${a.level === 'red' ? 'RED' : 'AMBER'} · ${a.title}` +
+        `${a.customer_name ? ' · ' + a.customer_name : ''}${a.detail ? ' · ' + a.detail : ''}` +
+        `${a.staff_name ? ' · staff: ' + a.staff_name : ''}${idOf.has(String(a.record_id)) ? ' · record ' + idOf.get(String(a.record_id)) : ''}`)
+        : ['(none)']),
+      '',
+      `SALES RECORDS (${Math.min(sales.length, MAX)}${sales.length > MAX ? ` of ${sales.length}, newest first` : ''})`,
+      ...(sales.length ? sales.slice(0, MAX).map(s => {
+        const what = [s.treatment && `treatment ${s.treatment} RM ${Number(s.treatment_amount).toFixed(2)}`,
+          s.product && `product ${s.product} x${s.product_qty} RM ${Number(s.product_amount).toFixed(2)}`,
+          s.service && `service done ${s.service} (session RM ${Number(s.service_amount).toFixed(2)})`].filter(Boolean).join('; ');
+        return `[${rid('S', s.id)}] ${App.date(s.sale_date)} · customer ${s.customer_name}` +
+          `${s.customer_id && idOf.has(String(s.customer_id)) ? ' ' + idOf.get(String(s.customer_id)) : ''} · ${what || 'no items'}` +
+          ` · discount RM ${Number(s.discount).toFixed(2)} · paid RM ${Number(s.total_sale).toFixed(2)}` +
+          ` · transaction ${s.transaction_status} · payment ${s.payment_status}` +
+          `${s.payment_status !== 'Paid' ? ` (balance RM ${Number(s.balance_due).toFixed(2)} due ${App.date(s.due_date)})` : ''}` +
+          ` · review ${s.status}${(s.review_reasons || []).length ? ' (' + s.review_reasons.join(', ') + ')' : ''}` +
+          ` · consultant ${name(s.consultant_id)} · beautician ${name(s.service_staff_id)} · product seller ${name(s.product_seller_id)}` +
+          ` · keyed in by ${name(s.created_by)} · lead source ${s.lead_source || 'missing'}` +
+          `${s.referred_by ? ' · referred by ' + s.referred_by : ''}${s.voucher_used ? ' · voucher ' + (s.voucher_code || 'no code') : ''}`;
+      }) : ['(none)']),
+      '',
+      `STOCK (${stock.length})`,
+      ...(stock.length ? stock.map(s => `[${rid('K', s.id)}] ${s.product} · ${s.quantity} in stock · reorder at ${s.reorder_level}` +
+        ` · issue ${s.issue_status}${s.issue_note ? ' (' + s.issue_note + ')' : ''}${s.proposed_issue_status ? ' · change to ' + s.proposed_issue_status + ' waiting for owner' : ''}`)
+        : ['(none)']),
+      '',
+      `CUSTOMERS SHOWN (${cust.length})`,
+      ...(cust.length ? cust.map(c => `[${rid('C', c.id)}] ${c.name}${c.is_vip ? ' · VIP' : ''} · status ${c.customer_status}` +
+        ` · ${c.visits} visits · total spend RM ${Number(c.total_spend).toFixed(2)}` +
+        ` · last visit ${c.last_visit ? App.date(c.last_visit) : 'none'}${bday(c) ? ' · ' + bday(c) : ''}`)
+        : ['(none)']));
+
+    $('briefPrompt').value = lines.join('\n');
+    $('briefInfo').textContent = `Built from ${lastFilters.records.sales} sales, ${stock.length} stock items, ` +
+      `${cust.length} customers and ${alerts.length} alerts · ${data.outlet} · ${App.monthLabel(data.month)}` +
+      (sales.length > MAX ? ` · only the newest ${MAX} sales are included` : '');
+    $('briefWork').classList.remove('hidden');
+    $('briefResp').value = ''; $('briefChecked').checked = false; $('saveBrief').disabled = true;
+    App.showMsg($('briefMsg'), ''); App.showMsg($('copyMsg'), '');
+  }
+
+  async function copyPrompt() {
+    try { await navigator.clipboard.writeText($('briefPrompt').value); App.showMsg($('copyMsg'), 'Prompt copied. Paste it into Claude.', 'ok'); }
+    catch { $('briefPrompt').select(); App.showMsg($('copyMsg'), 'Press Ctrl+C to copy the selected prompt.', 'info'); }
+  }
+
+  async function saveBrief() {
+    if (!$('briefChecked').checked) return;
+    const brief = $('briefResp').value.trim();
+    if (brief.length < 20) return App.showMsg($('briefMsg'), "Please paste Claude's checked response first.", 'error');
+    $('saveBrief').disabled = true;
+    const { error } = await sb.from('ai_briefs').insert({
+      scope: lastFilters.outlet, period: App.date(lastFilters.today), prompt: $('briefPrompt').value,
+      brief, checked: true, filters: lastFilters });
+    if (error) { $('saveBrief').disabled = false; return App.showMsg($('briefMsg'), App.friendlyError(error), 'error'); }
+    App.showMsg($('briefMsg'), 'Brief saved. It is now read-only.', 'ok');
+    $('briefResp').value = ''; $('briefChecked').checked = false;
+    setTimeout(() => $('briefWork').classList.add('hidden'), 1500);
+    loadBriefs();
+  }
+
+  async function loadBriefs() {
+    const all = me.role === 'owner' && $('briefScope').value === 'all';
+    let q = sb.from('ai_briefs').select('id, created_at, created_by_name, scope, period, brief, filters, checked, updated_at')
+      .order('created_at', { ascending: false }).limit(5);
+    if (!all) q = q.eq('scope', currentOutlet());
+    const { data: list, error } = await q;
+    if (error) return $('briefList').innerHTML = `<p class="msg error">${App.esc(App.friendlyError(error))}</p>`;
+    if (!list.length) return $('briefList').innerHTML = '<p class="empty">No briefs saved yet.</p>';
+    $('briefList').innerHTML = list.map(b => {
+      const f = b.filters || {}, r = f.records || {};
+      return `<div class="brief" data-id="${b.id}">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <strong>${App.esc(b.scope)} · ${App.dateTime(b.created_at)}</strong>
+          <span class="muted">by ${App.esc(b.created_by_name || '—')} ${b.checked ? '· ✓ checked' : ''}</span>
+        </div>
+        <div class="muted" style="font-size:.82rem">Filters: ${App.esc(f.month ? App.monthLabel(f.month) : '')}` +
+        `${f.sales_search ? ' · sales "' + App.esc(f.sales_search) + '"' : ''}${f.customer_search ? ' · customers "' + App.esc(f.customer_search) + '"' : ''}` +
+        ` · ${r.sales ?? 0} sales, ${r.stock ?? 0} stock, ${r.customers ?? 0} customers, ${r.alerts ?? 0} alerts` +
+        `${b.updated_at ? ' · edited by owner ' + App.dateTime(b.updated_at) : ''}</div>
+        <div class="brief-text">${App.esc(b.brief)}</div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button type="button" class="link" data-more>Show all</button>
+          ${me.role === 'owner' ? '<button type="button" class="link" data-edit>Edit (owner)</button>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+    $('briefList').querySelectorAll('[data-more]').forEach(b => b.addEventListener('click', () => {
+      const t = b.closest('.brief').querySelector('.brief-text'); t.classList.toggle('open');
+      b.textContent = t.classList.contains('open') ? 'Show less' : 'Show all';
+    }));
+    $('briefList').querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => {
+      const box = btn.closest('.brief'), b = list.find(x => x.id === box.dataset.id);
+      box.querySelector('.brief-text').outerHTML = `<textarea class="brief-edit" rows="8" style="margin-top:8px">${App.esc(b.brief)}</textarea>`;
+      btn.outerHTML = '<button type="button" class="small" data-save-edit>Save edit</button>';
+      box.querySelector('[data-save-edit]').addEventListener('click', async () => {
+        const text = box.querySelector('.brief-edit').value.trim();
+        if (!text) return;
+        const { error: e } = await sb.from('ai_briefs').update({ brief: text }).eq('id', b.id);
+        if (e) return alert(App.friendlyError(e));
+        loadBriefs();
+      });
+    }));
   }
 
   // ---------- Update dialogs ----------

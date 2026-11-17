@@ -237,11 +237,15 @@ Other warnings (go to the Alerts box, not to a single sale):
 
 ## G. AI feature
 
-**Monthly Brief button** (manager and owner dashboards):
+**AI Morning Brief** (Manager Dashboard; the owner can use it for any outlet):
 
-1. The app writes a ready-made question for Claude using the numbers shown on screen, such as sales per outlet, top staff, top lead sources and low stock.
-2. You copy it into Claude, read the answer, and fix anything wrong.
-3. You tick **"I have checked this"** and click **Save**. The brief is kept in the AI briefs list.
+1. **Prepare AI Morning Brief** builds a question for Claude from **only** the records on screen after the filters (month, sales search, customer search), plus today's date, the outlet, the team list, and the rules and thresholds in Settings. Every record gets an ID (S- sale, K- stock, C- customer, A- alert).
+2. Claude is asked for: **(1)** a one-line headline, **(2)** the top 3 actions for today, **(3)** who should do each one, and **(4)** a watch list. Every fact must quote its record ID, and anything not in the records must be written as "Not in the records".
+3. **Copy Prompt**, run it in Claude, check the answer, and paste it in the box.
+4. Tick **"I have checked this brief"**. **Save Brief** stays greyed out until the box is ticked.
+5. Saved with: the brief, the manager's name (from their account), outlet, date and time, filters used and record counts, the prompt, and the "checked" confirmation. It is recorded in History.
+6. The **last 5 briefs** show on the dashboard. Managers see only their outlet's; the owner can switch to all outlets.
+7. Saved briefs are **read-only**. Only the owner can edit the text, and each edit is logged with before and after.
 
 **Never-do list:**
 
