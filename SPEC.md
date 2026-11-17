@@ -24,7 +24,7 @@ Zenvique has several outlets and one HQ store. This system lets us:
 |---|---|---|---|
 | **Sales** – see | Only sales they're named in (Consultant, Service Staff or Product Seller) or typed in themselves | All sales at **their own outlet** | All sales, all outlets |
 | **Sales** – add | Yes (for their outlet) | Yes (their outlet) | Yes (any outlet) |
-| **Sales** – edit | Only sales they typed in | **No.** Can put a **red flag** on any sale at their outlet, with a reason | Any sale (reviews red-flagged sales and does the editing) |
+| **Sales** – edit | Only sales they typed in | Any sale at their outlet, **but the change waits for owner approval** | Any sale (changes apply straight away). Approves or rejects manager changes |
 | **Sales** – delete | No | No | Yes |
 | **Commission** – see | **Only their own share** | Everyone at their outlet | Everyone |
 | **Stock** – see | No | Their outlet only | HQ + every outlet + grand total |
@@ -34,7 +34,7 @@ Zenvique has several outlets and one HQ store. This system lets us:
 | **Users** – change role, outlet, active/inactive | No | No | Yes |
 | **History log** (who did what) | No | Their outlet | Everything |
 
-Note: a manager sees **only their assigned outlet** and **cannot edit sales**. If something looks wrong, the manager puts a red flag on the sale and writes why. The owner then reviews it and makes the edit. This replaces the general house rule that managers see and edit everything.
+Note: a manager sees **only their assigned outlet**. A manager can fix a sale, but the fix is saved as **"Pending approval"** with a reason. The sale keeps its old numbers (total, commission, stock) until the owner clicks **Approve**. If the owner clicks **Reject**, the old numbers stay and the manager is told why. This replaces the general house rule that managers see and edit everything.
 
 ---
 
@@ -69,8 +69,9 @@ Note: a manager sees **only their assigned outlet** and **cannot edit sales**. I
 | Consultant Commission | worked out automatically |
 | Service Staff Commission | worked out automatically |
 | Product Seller Commission | worked out automatically |
-| Status | OK / Needs review / Red flag (by manager) |
-| Flag Reason | why the manager flagged it, e.g. "wrong amount" |
+| Status | OK / Needs review / Pending approval |
+| Proposed Change | the manager's fix, waiting for owner approval (old values stay in use until approved) |
+| Change Reason | why the manager changed it, e.g. "wrong amount keyed in" |
 | Notes | free text |
 | (automatic) ID, created at, created by | |
 
@@ -103,7 +104,7 @@ Consultant, Service Staff and Product Seller are kept **separately** because the
 | **New Sale**: form with outlet, customer, the 3 staff roles, items, amounts, voucher, referral, lead source, payment | ✓ | ✓ | ✓ |
 | **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
 | **Outlet Dashboard**: daily and monthly sales, staff performance, treatment vs product, lead source / voucher / referral results | | ✓ | ✓ (pick any outlet) |
-| **Review List**: sales marked "Needs review" or red-flagged. Manager can red-flag (view only); owner opens, edits, and clears the flag | | ✓ (flag only) | ✓ (review & edit) |
+| **Review List**: sales marked "Needs review" or "Pending approval". Manager fixes the sale; owner sees old vs new side by side and clicks Approve or Reject | | ✓ (fix) | ✓ (approve / reject) |
 | **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |
 | **Owner Dashboard**: compare all outlets, all staff commission, lead-source breakdown | | | ✓ |
 | **HQ Stock & Transfers**: HQ stock, move stock from HQ to an outlet, grand total | | | ✓ |
@@ -127,6 +128,7 @@ Every screen works on a phone.
 | **Low Stock** | when quantity is **equal to or below** the reorder level |
 | Moving stock from HQ to an outlet | lowers HQ stock and raises outlet stock by the same amount |
 | Every sale must belong to an outlet | the sale can't be saved without one |
+| Manager's change to a sale | totals, commission and stock change **only after** the owner approves |
 
 A sale is marked **"Needs review"** when any of these happen:
 
@@ -200,7 +202,8 @@ Other warnings (go to the Alerts box, not to a single sale):
 | Manager | A product at their outlet reaches Low Stock | Alerts box + WhatsApp button (pre-typed message to the owner) |
 | Manager | A sale at their outlet is marked "Needs review" | Alerts box |
 | Owner | Low Stock at HQ or any outlet | Alerts box |
-| Owner | A manager red-flags a sale | Alerts box + WhatsApp button (pre-typed message from the manager) |
+| Manager | The owner approves or rejects their change | Alerts box |
+| Owner | A manager changes a sale (waiting for approval) | Alerts box + WhatsApp button (pre-typed message from the manager) |
 | Owner | Sales marked "Needs review", quiet outlets, stock counts that don't tally | Alerts box |
 | Owner | Monthly summary (optional): outlet sales, commission, lead sources | "Monthly summary" button that opens a pre-typed WhatsApp message |
 
