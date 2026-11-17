@@ -104,7 +104,7 @@ Consultant, Beautician(s) and Product Seller are kept **separately** because the
 |---|---|---|---|
 | Login | ✓ | ✓ | ✓ |
 | **New Sale**: outlet, customer, *Paid today* (treatment, product, consultant, seller, discount, payment) and/or *Service done today* (treatment done, session amount, beautician(s) and rate), voucher, referral, lead source | ✓ | ✓ | ✓ |
-| **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
+| **My Sales & Commission**: pick a month. My commission per outlet (Treatment 1% × RM, Product 5% × RM, Service Comm Total) and a grand total, like the monthly commission sheet; my treatment service record (date, customer, treatment, amount, FOC / FULL / SHARE column, Com Amt) like the beauticians' sheet; my sales list with status; download my sheet as CSV. Only my own commission is ever shown | ✓ | ✓ | ✓ |
 | **Manager Dashboard** (own outlet only): Branch Total Sales, Sales Target Achievement % (target, actual, remaining), My Personal Sales (sales where I am the Consultant, still counted in the branch total), Sales Volume, Treatment Sales; then Product Sales, Service Done, New Customers, Low Stock, 6-month trend, treatment / product breakdown, lead source, referral source, voucher usage, stock inventory, alerts. No other staff's commission, no other outlets | | ✓ | ✓ (pick any outlet) |
 | **Review List**: sales marked "Needs review" or "Pending approval". Manager fixes the sale; owner sees old vs new side by side and clicks Approve or Reject | | ✓ (fix) | ✓ (approve / reject) |
 | **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |

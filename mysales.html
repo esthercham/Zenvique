@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Sales & Commission · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    .outlet-block { border: 1px solid var(--line); border-radius: 10px; margin-top: 12px; overflow: hidden; }
+    .outlet-block .head { background: #fef9c3; padding: 10px 14px; font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+    .outlet-block .line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: .95rem; }
+    .outlet-block .line span:last-child { white-space: nowrap; font-weight: 600; }
+    .grand { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin-top: 12px;
+             border-radius: 10px; background: var(--ok-bg); font-size: 1.2rem; font-weight: 700; color: var(--ok); }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .78rem; font-weight: 600; }
+    .pill.OK { background: var(--ok-bg); color: var(--ok); }
+    .pill.Needs { background: #fef3c7; color: #92400e; }
+    .pill.Pending { background: var(--info-bg); color: var(--info); }
+    td.rate { text-align: right; color: var(--muted); }
+    td.rate.on { color: var(--text); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">My Sales &amp; Commission</h1>
+        <span class="muted" id="subtitle"></span>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div class="filters card" style="padding:14px">
+      <div><label for="month">Month</label><input id="month" type="month"></div>
+      <div style="flex:0 0 auto"><button type="button" class="ghost" id="dlBtn">Download my sheet (CSV)</button></div>
+    </div>
+    <div id="pageMsg" class="msg"></div>
+
+    <div class="kpis section">
+      <div class="kpi"><div class="label">My Commission</div><div class="value" id="kComm">–</div><div class="small">this month, all outlets</div></div>
+      <div class="kpi"><div class="label">My Personal Sales</div><div class="value" id="kPersonal">–</div><div class="small" id="kPersonalN"></div></div>
+      <div class="kpi"><div class="label">Products I Sold</div><div class="value" id="kProd">–</div></div>
+      <div class="kpi"><div class="label">Services I Did</div><div class="value" id="kSvc">–</div><div class="small" id="kSvcN"></div></div>
+    </div>
+
+    <div class="card section">
+      <h2 id="commTitle">Commission</h2>
+      <div id="commBlocks"></div>
+    </div>
+
+    <div class="card section">
+      <h2>Treatment service record</h2>
+      <p class="muted" style="margin:0 0 8px">Every treatment I did this month and the rate used.</p>
+      <div class="tablewrap" id="tblService"></div>
+    </div>
+
+    <div class="card section">
+      <h2>My sales this month</h2>
+      <p class="muted" style="margin:0 0 8px">Sales where I'm the Consultant, Product Seller or Beautician, or that I keyed in.</p>
+      <div class="tablewrap" id="tblSales"></div>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let me, settings = {}, cache = null;
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  const SALE_COLS = 'id, created_by, sale_date, outlet, customer_name, consultant_id, product_seller_id, service_staff_id, ' +
+    'service_staff2_id, treatment, product, product_qty, service, treatment_amount, product_amount, service_amount, ' +
+    'discount, total_sale, status, review_reasons, owner_note';
+  const sum = (list, fn) => list.reduce((a, x) => a + fn(x), 0);
+
+  (async () => {
+    me = await App.requireRole(['staff', 'manager', 'owner']);
+    $('month').value = App.ym(App.todayKL());
+    $('month').max = App.ym(App.todayKL());
+    $('month').addEventListener('change', load);
+    $('dlBtn').addEventListener('click', download);
+    try {
+      const { data, error } = await sb.from('settings').select('key, value').in('key', ['service_rates', 'commission']);
+      if (error) throw error;
+      (data || []).forEach(r => settings[r.key] = r.value);
+    } catch (err) { /* page still works without these */ }
+    load();
+  })();
+
+  async function load() {
+    const month = $('month').value || App.ym(App.todayKL());
+    const from = month + '-01', to = App.monthEnd(month);
+    $('subtitle').textContent = `${me.full_name || me.email} · ${App.monthLabel(month)}`;
+    $('commTitle').textContent = `${App.monthLabel(month)} Commission`;
+    App.showMsg($('pageMsg'), '');
+    try {
+      const [lines, sales] = await Promise.all([
+        App.fetchAll(() => sb.rpc('commission_lines', { p_from: from, p_to: to })),
+        App.fetchAll(() => sb.from('sales').select(SALE_COLS).gte('sale_date', from).lte('sale_date', to)
+          .order('sale_date').order('id')),
+      ]);
+      const mine = lines.filter(l => l.staff_id === me.id);   // owner gets everyone's lines; keep only mine
+      const mySales = sales.filter(s => [s.created_by, s.consultant_id, s.product_seller_id,
+                                          s.service_staff_id, s.service_staff2_id].includes(me.id));
+      cache = { month, mine, mySales };
+      render();
+    } catch (err) {
+      App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
+    }
+  }
+
+  // Per outlet: Treatment x%, Product y%, Service total (like the monthly commission sheet)
+  function perOutlet(mine) {
+    const m = new Map();
+    mine.forEach(l => {
+      const g = m.get(l.outlet) || { outlet: l.outlet, tb: 0, tc: 0, tr: null, pb: 0, pc: 0, pr: null, sc: 0, sn: 0 };
+      if (l.kind === 'Treatment sale') { g.tb += Number(l.base_amount); g.tc += Number(l.commission); g.tr = l.rate_label; }
+      else if (l.kind === 'Product sale') { g.pb += Number(l.base_amount); g.pc += Number(l.commission); g.pr = l.rate_label; }
+      else { g.sc += Number(l.commission); g.sn++; }
+      m.set(l.outlet, g);
+    });
+    return [...m.values()].map(g => ({ ...g, total: g.tc + g.pc + g.sc })).sort((a, b) => b.total - a.total);
+  }
+
+  function render() {
+    const { mine, mySales } = cache;
+    const c = settings.commission || {};
+    const tRate = (c.consultant_pct ?? '') + '%', pRate = (c.product_seller_pct ?? '') + '%';
+    const blocks = perOutlet(mine);
+    const grand = sum(blocks, b => b.total);
+
+    // KPIs
+    $('kComm').textContent = App.rm(grand);
+    const personal = mine.filter(l => l.kind === 'Treatment sale');
+    $('kPersonal').textContent = App.rm(sum(personal, l => Number(l.base_amount)));
+    $('kPersonalN').textContent = `${personal.length} sale${personal.length === 1 ? '' : 's'} as Consultant`;
+    $('kProd').textContent = App.rm(sum(mine.filter(l => l.kind === 'Product sale'), l => Number(l.base_amount)));
+    const svc = mine.filter(l => l.kind === 'Service');
+    $('kSvc').textContent = svc.length;
+    $('kSvcN').textContent = `session value ${App.rm(sum(svc, l => Number(l.base_amount)))}`;
+
+    // Commission blocks
+    $('commBlocks').innerHTML = blocks.length ? blocks.map(b => `
+      <div class="outlet-block">
+        <div class="head"><span>${App.esc(b.outlet)}</span><span>${App.rm(b.total)}</span></div>
+        <div class="line"><span>Treatment Sale = ${App.esc(b.tr || tRate)} × ${App.rm(b.tb)}</span><span>${App.rm(b.tc)}</span></div>
+        <div class="line"><span>Product Sale = ${App.esc(b.pr || pRate)} × ${App.rm(b.pb)}</span><span>${App.rm(b.pc)}</span></div>
+        <div class="line"><span>Service Comm Total (${b.sn} treatment${b.sn === 1 ? '' : 's'})</span><span>${App.rm(b.sc)}</span></div>
+      </div>`).join('') + `<div class="grand"><span>Total</span><span>${App.rm(grand)}</span></div>`
+      : '<p class="empty">No commission yet this month.</p>';
+
+    // Treatment service record (like the beauticians' Google Sheet)
+    const rateCols = (settings.service_rates || [])
+      .slice().sort((a, b) => ({ FOC: 0, FULL: 1, SHARE: 2 }[a.type] - { FOC: 0, FULL: 1, SHARE: 2 }[b.type]) || a.pct - b.pct)
+      .map(r => `${r.type} ${r.pct}%`);
+    svc.forEach(l => { if (l.rate_label && !rateCols.includes(l.rate_label)) rateCols.push(l.rate_label); });
+    if (!svc.length) {
+      $('tblService').innerHTML = '<p class="empty">No treatments recorded for you this month.</p>';
+    } else {
+      $('tblService').innerHTML = `<table><thead><tr><th>Date</th><th>Customer</th><th>Treatment</th><th class="num">Amount</th>
+        ${rateCols.map(r => `<th class="num">${App.esc(r)}</th>`).join('')}<th class="num">Com Amt</th></tr></thead><tbody>
+        ${svc.map(l => `<tr><td>${App.date(l.sale_date)}</td><td>${App.esc(l.customer_name)}</td>
+          <td>${App.esc(l.item || '')}<div class="muted" style="font-size:.8rem">${App.esc(l.outlet)}</div></td>
+          <td class="num">${Number(l.base_amount).toFixed(2)}</td>
+          ${rateCols.map(r => `<td class="rate ${r === l.rate_label ? 'on' : ''}">${r === l.rate_label ? Number(l.commission).toFixed(2) : ''}</td>`).join('')}
+          <td class="num"><strong>${Number(l.commission).toFixed(2)}</strong></td></tr>`).join('')}
+        <tr><td colspan="${4 + rateCols.length}" class="num"><strong>TOTAL</strong></td>
+          <td class="num"><strong>${App.rm(sum(svc, l => Number(l.commission)))}</strong></td></tr>
+        </tbody></table>`;
+    }
+
+    // My sales list
+    if (!mySales.length) {
+      $('tblSales').innerHTML = '<p class="empty">No sales with your name this month.</p>';
+    } else {
+      const roles = s => [s.consultant_id === me.id && 'Consultant', s.product_seller_id === me.id && 'Seller',
+        (s.service_staff_id === me.id || s.service_staff2_id === me.id) && 'Beautician',
+        s.created_by === me.id && 'Keyed in'].filter(Boolean).join(', ');
+      $('tblSales').innerHTML = `<table><thead><tr><th>Date</th><th>Customer</th><th>What</th><th>My part</th>
+        <th class="num">Paid</th><th>Status</th></tr></thead><tbody>
+        ${mySales.map(s => {
+          const what = [s.treatment, s.product && `${s.product} ×${s.product_qty}`, s.service && `Done: ${s.service}`].filter(Boolean).join(' · ');
+          const st = s.status || 'OK';
+          const note = st !== 'OK' && (s.review_reasons || []).length ? `<div class="muted" style="font-size:.8rem">${App.esc(s.review_reasons.join(', '))}</div>` : '';
+          return `<tr><td>${App.date(s.sale_date)}</td><td>${App.esc(s.customer_name)}<div class="muted" style="font-size:.8rem">${App.esc(s.outlet)}</div></td>
+            <td>${App.esc(what)}</td><td>${App.esc(roles(s))}</td><td class="num">${App.rm(s.total_sale)}</td>
+            <td><span class="pill ${st.split(' ')[0]}">${App.esc(st)}</span>${note}</td></tr>`;
+        }).join('')}</tbody></table>`;
+    }
+  }
+
+  function download() {
+    if (!cache) return;
+    const { month, mine } = cache;
+    const cell = v => { const s = v == null ? '' : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = [['Date', 'Outlet', 'Type', 'Customer', 'Item', 'Rate', 'Base RM', 'Commission RM']]
+      .concat(mine.map(l => [App.date(l.sale_date), l.outlet, l.kind, l.customer_name, l.item, l.rate_label,
+        Number(l.base_amount).toFixed(2), Number(l.commission).toFixed(2)]))
+      .concat([['', '', '', '', '', '', 'TOTAL', sum(mine, l => Number(l.commission)).toFixed(2)]]);
+    const text = '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `my-commission_${month}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+</script>
+</body>
+</html>
