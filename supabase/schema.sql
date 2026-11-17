@@ -661,7 +661,7 @@ grant  execute on function public.transfer_stock(text,text,integer)    to authen
 -- ---------------------------------------------------------------------
 
 insert into public.settings (key, value) values
-  ('outlets',         '["Bangsar", "Puchong", "Mont Kiara"]'),
+  ('outlets',         '["Petaling Jaya", "Damansara Uptown", "Setia Taipan", "Eco Ardence"]'),
   ('hq',              '{"name": "HQ"}'),
   ('commission',      '{"consultant_pct": 10, "service_staff_pct": 5, "product_seller_pct": 5}'),
   ('review_rules',    '{"big_discount_pct": 30, "large_sale_rm": 5000,
@@ -680,18 +680,21 @@ insert into public.settings (key, value) values
 on conflict (key) do nothing;
 
 insert into public.stock (location, product, quantity, reorder_level) values
-  ('HQ',         'Serum 30ml',      100, 20),
-  ('HQ',         'Sunscreen SPF50', 120, 20),
-  ('HQ',         'Cleanser 150ml',   80, 20),
-  ('Bangsar',    'Serum 30ml',       15,  5),
-  ('Bangsar',    'Sunscreen SPF50',   4,  5),
-  ('Bangsar',    'Cleanser 150ml',   12,  5),
-  ('Puchong',    'Serum 30ml',       10,  5),
-  ('Puchong',    'Sunscreen SPF50',  18,  5),
-  ('Puchong',    'Cleanser 150ml',    5,  5),
-  ('Mont Kiara', 'Serum 30ml',       20,  5),
-  ('Mont Kiara', 'Sunscreen SPF50',  14,  5),
-  ('Mont Kiara', 'Cleanser 150ml',    9,  5)
+  ('HQ',               'Serum 30ml',      100, 20),
+  ('HQ',               'Sunscreen SPF50', 120, 20),
+  ('HQ',               'Cleanser 150ml',   80, 20),
+  ('Petaling Jaya',    'Serum 30ml',       15,  5),
+  ('Petaling Jaya',    'Sunscreen SPF50',   4,  5),
+  ('Petaling Jaya',    'Cleanser 150ml',   12,  5),
+  ('Damansara Uptown', 'Serum 30ml',       10,  5),
+  ('Damansara Uptown', 'Sunscreen SPF50',  18,  5),
+  ('Damansara Uptown', 'Cleanser 150ml',    5,  5),
+  ('Setia Taipan',     'Serum 30ml',       20,  5),
+  ('Setia Taipan',     'Sunscreen SPF50',  14,  5),
+  ('Setia Taipan',     'Cleanser 150ml',    9,  5),
+  ('Eco Ardence',      'Serum 30ml',       12,  5),
+  ('Eco Ardence',      'Sunscreen SPF50',  10,  5),
+  ('Eco Ardence',      'Cleanser 150ml',    3,  5)
 on conflict (location, product) do nothing;
 
 -- Done. You should see "Success. No rows returned".
