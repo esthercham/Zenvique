@@ -24,7 +24,7 @@ Zenvique has several outlets and one HQ store. This system lets us:
 |---|---|---|---|
 | **Sales** – see | Only sales they're named in (Consultant, Service Staff or Product Seller) or typed in themselves | All sales at **their own outlet** | All sales, all outlets |
 | **Sales** – add | Yes (for their outlet) | Yes (their outlet) | Yes (any outlet) |
-| **Sales** – edit | Only sales they typed in | Any sale at their outlet | Any sale |
+| **Sales** – edit | Only sales they typed in | **No.** Can put a **red flag** on any sale at their outlet, with a reason | Any sale (reviews red-flagged sales and does the editing) |
 | **Sales** – delete | No | No | Yes |
 | **Commission** – see | **Only their own share** | Everyone at their outlet | Everyone |
 | **Stock** – see | No | Their outlet only | HQ + every outlet + grand total |
@@ -34,7 +34,7 @@ Zenvique has several outlets and one HQ store. This system lets us:
 | **Users** – change role, outlet, active/inactive | No | No | Yes |
 | **History log** (who did what) | No | Their outlet | Everything |
 
-Note: a manager sees **only their assigned outlet**. This replaces the general house rule that managers see everything.
+Note: a manager sees **only their assigned outlet** and **cannot edit sales**. If something looks wrong, the manager puts a red flag on the sale and writes why. The owner then reviews it and makes the edit. This replaces the general house rule that managers see and edit everything.
 
 ---
 
@@ -69,7 +69,8 @@ Note: a manager sees **only their assigned outlet**. This replaces the general h
 | Consultant Commission | worked out automatically |
 | Service Staff Commission | worked out automatically |
 | Product Seller Commission | worked out automatically |
-| Status | OK / Needs review |
+| Status | OK / Needs review / Red flag (by manager) |
+| Flag Reason | why the manager flagged it, e.g. "wrong amount" |
 | Notes | free text |
 | (automatic) ID, created at, created by | |
 
@@ -102,7 +103,7 @@ Consultant, Service Staff and Product Seller are kept **separately** because the
 | **New Sale**: form with outlet, customer, the 3 staff roles, items, amounts, voucher, referral, lead source, payment | ✓ | ✓ | ✓ |
 | **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
 | **Outlet Dashboard**: daily and monthly sales, staff performance, treatment vs product, lead source / voucher / referral results | | ✓ | ✓ (pick any outlet) |
-| **Review List**: sales marked "Needs review" | | ✓ | ✓ |
+| **Review List**: sales marked "Needs review" or red-flagged. Manager can red-flag (view only); owner opens, edits, and clears the flag | | ✓ (flag only) | ✓ (review & edit) |
 | **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |
 | **Owner Dashboard**: compare all outlets, all staff commission, lead-source breakdown | | | ✓ |
 | **HQ Stock & Transfers**: HQ stock, move stock from HQ to an outlet, grand total | | | ✓ |
@@ -199,6 +200,7 @@ Other warnings (go to the Alerts box, not to a single sale):
 | Manager | A product at their outlet reaches Low Stock | Alerts box + WhatsApp button (pre-typed message to the owner) |
 | Manager | A sale at their outlet is marked "Needs review" | Alerts box |
 | Owner | Low Stock at HQ or any outlet | Alerts box |
+| Owner | A manager red-flags a sale | Alerts box + WhatsApp button (pre-typed message from the manager) |
 | Owner | Sales marked "Needs review", quiet outlets, stock counts that don't tally | Alerts box |
 | Owner | Monthly summary (optional): outlet sales, commission, lead sources | "Monthly summary" button that opens a pre-typed WhatsApp message |
 
