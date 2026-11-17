@@ -11,6 +11,7 @@
   <style>
     fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 16px; margin: 16px 0 0; }
     legend { font-weight: 700; padding: 0 6px; }
+    .hint { color: var(--muted); font-size: .88rem; margin: 6px 0 0; }
     .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
     .grid3 { display: grid; gap: 0 12px; grid-template-columns: 2fr 1fr 1fr; }
     @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
@@ -22,6 +23,8 @@
     .radio label { display: flex; align-items: center; gap: 6px; font-weight: 500; margin: 6px 0; }
     .radio input { width: 18px; height: 18px; }
     .static { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 600; }
+    .sub-head { font-weight: 600; margin: 16px 0 0; }
+    .pkgrow { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
   </style>
 </head>
 <body>
@@ -37,7 +40,11 @@
     <div id="blocked" class="card hidden"></div>
 
     <form id="saleForm" class="card hidden" novalidate>
-      <p class="muted" style="margin:0">Fields with <span style="color:var(--danger)">*</span> are required. Total and commission are worked out automatically.</p>
+      <p class="muted" style="margin:0">
+        Fill in <strong>Paid today</strong>, <strong>Service done today</strong>, or both.
+        For a package session with no payment, just fill in Service done today.
+        Fields with <span style="color:var(--danger)">*</span> are required.
+      </p>
 
       <fieldset>
         <legend>When &amp; where</legend>
@@ -68,38 +75,28 @@
         </div>
       </fieldset>
 
+      <!-- PAID TODAY: personal sales -->
       <fieldset>
-        <legend>Staff on this sale</legend>
-        <p class="muted" style="margin:8px 0 0;font-size:.88rem">These can be three different people.</p>
-        <div class="grid3" style="grid-template-columns:1fr 1fr 1fr">
-          <div>
-            <label for="consultant">Consultant / Client Owner</label>
-            <select id="consultant"></select>
-          </div>
-          <div>
-            <label for="serviceStaff">Service Staff</label>
-            <select id="serviceStaff"></select>
-          </div>
-          <div>
-            <label for="productSeller">Product Seller</label>
-            <select id="productSeller"></select>
-          </div>
-        </div>
-      </fieldset>
+        <legend>Paid today (personal sales)</legend>
+        <p class="hint">Consultant earns commission on Treatment; Product Seller on Product. Both after discount.</p>
 
-      <fieldset>
-        <legend>What was sold</legend>
+        <p class="sub-head">Treatment / package sold</p>
         <div class="grid3">
           <div>
-            <label for="treatment">Treatment</label>
-            <select id="treatment"></select>
+            <label for="treatment">Treatment or package</label>
+            <input id="treatment" list="itemList" autocomplete="off" placeholder="e.g. Hifu 10 sessions">
           </div>
-          <div></div>
+          <div>
+            <label for="consultant">Consultant</label>
+            <select id="consultant"></select>
+          </div>
           <div>
             <label for="treatmentAmount">Treatment RM</label>
             <input id="treatmentAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
           </div>
         </div>
+
+        <p class="sub-head">Product sold</p>
         <div class="grid3">
           <div>
             <label for="product">Product</label>
@@ -116,20 +113,74 @@
         </div>
         <div class="grid3">
           <div>
-            <label for="service">Service</label>
-            <select id="service"></select>
+            <label for="productSeller">Product Seller</label>
+            <select id="productSeller"></select>
           </div>
           <div></div>
           <div>
-            <label for="serviceAmount">Service RM</label>
+            <label for="discount">Discount / Promo RM</label>
+            <input id="discount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label for="paymentMethod">Payment method</label>
+            <select id="paymentMethod"></select>
+          </div>
+        </div>
+
+        <div class="totalbox">
+          <span>Total paid today</span>
+          <span class="big" id="totalShow">RM 0.00</span>
+        </div>
+      </fieldset>
+
+      <!-- SERVICE DONE TODAY: beautician commission -->
+      <fieldset>
+        <legend>Service done today (beautician commission)</legend>
+        <p class="hint">The treatment actually done today. For a package, use the price of one session
+          (e.g. RM798 ÷ 4 sessions = RM199.50). This is not money paid. It's only for service commission.</p>
+
+        <div class="grid2">
+          <div>
+            <label for="service">Treatment done</label>
+            <input id="service" list="itemList" autocomplete="off" placeholder="e.g. Discovered trt 2/4">
+          </div>
+          <div>
+            <label for="serviceAmount">Session amount RM</label>
             <input id="serviceAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
           </div>
         </div>
-        <div class="grid3">
-          <div></div><div></div>
+        <p class="sub-head">Package helper <span class="muted" style="font-weight:400">(optional: works out the session amount)</span></p>
+        <div class="pkgrow">
           <div>
-            <label for="discount">Discount / Promo RM</label>
-            <input id="discount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+            <label for="pkgPrice">Package price RM</label>
+            <input id="pkgPrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 798">
+          </div>
+          <div>
+            <label for="pkgSessions">Sessions</label>
+            <input id="pkgSessions" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 4">
+          </div>
+        </div>
+        <p class="hint" id="pkgHint"></p>
+
+        <div class="grid2">
+          <div>
+            <label for="serviceStaff">Beautician</label>
+            <select id="serviceStaff"></select>
+          </div>
+          <div>
+            <label for="serviceRate">Rate</label>
+            <select id="serviceRate"></select>
+          </div>
+          <div>
+            <label for="serviceStaff2">2nd beautician <span class="muted">(if shared)</span></label>
+            <select id="serviceStaff2"></select>
+          </div>
+          <div>
+            <label for="serviceRate2">2nd beautician's rate</label>
+            <select id="serviceRate2"></select>
           </div>
         </div>
       </fieldset>
@@ -161,29 +212,14 @@
             <input id="voucherCode" type="text" autocomplete="off" placeholder="e.g. NEWYEAR10">
           </div>
         </div>
+        <label for="notes">Notes</label>
+        <input id="notes" type="text" autocomplete="off">
       </fieldset>
 
-      <fieldset>
-        <legend>Payment</legend>
-        <div class="grid2">
-          <div>
-            <label for="paymentMethod">Payment method</label>
-            <select id="paymentMethod"></select>
-          </div>
-          <div>
-            <label for="notes">Notes</label>
-            <input id="notes" type="text" autocomplete="off">
-          </div>
-        </div>
-      </fieldset>
+      <datalist id="itemList"></datalist>
 
-      <div class="totalbox">
-        <span>Total sale</span>
-        <span class="big" id="totalShow">RM 0.00</span>
-      </div>
       <div id="flagMsg" class="msg"></div>
-
-      <button type="submit" class="full" id="saveBtn">Save sale</button>
+      <button type="submit" class="full" id="saveBtn">Save</button>
       <div id="formMsg" class="msg"></div>
     </form>
   </div>
@@ -217,7 +253,7 @@
     try {
       const [{ data: s, error: e1 }, { data: p, error: e2 }] = await Promise.all([
         sb.from('settings').select('key, value')
-          .in('key', ['outlets', 'catalog', 'lead_sources', 'payment_methods', 'review_rules']),
+          .in('key', ['outlets', 'catalog', 'lead_sources', 'payment_methods', 'review_rules', 'service_rates']),
         sb.from('profiles').select('id, full_name, email, role, outlet, active').eq('active', true).order('full_name'),
       ]);
       if (e1) throw e1;
@@ -241,12 +277,16 @@
       $('outletStatic').classList.remove('hidden');
     }
 
-    // Items from the catalog
+    // Catalog: suggestions for treatments/services (free text allowed); products must match stock names
     const cat = settings.catalog || {};
-    const itemOpts = list => (list || []).map(i => ({ value: i.name, label: `${i.name} (${App.rm(i.price)})` }));
-    fillSelect($('treatment'), itemOpts(cat.treatments));
-    fillSelect($('product'), itemOpts(cat.products));
-    fillSelect($('service'), itemOpts(cat.services));
+    $('itemList').innerHTML = [...(cat.treatments || []), ...(cat.services || [])]
+      .map(i => `<option value="${App.esc(i.name)}">${App.rm(i.price)}</option>`).join('');
+    fillSelect($('product'), (cat.products || []).map(i => ({ value: i.name, label: `${i.name} (${App.rm(i.price)})` })));
+
+    // Beautician rates: FULL 5%, FOC 1-3%, SHARE 1-4% (from settings)
+    const rates = (settings.service_rates || []).map(r => ({ value: `${r.type}|${r.pct}`, label: `${r.type} ${r.pct}%` }));
+    fillSelect($('serviceRate'), rates, null);
+    fillSelect($('serviceRate2'), rates, '— Pick rate —');
 
     fillSelect($('leadSource'), (settings.lead_sources || []).map(x => ({ value: x, label: x })), '— Pick one —');
     fillSelect($('paymentMethod'), (settings.payment_methods || []).map(x => ({ value: x, label: x })), '— Pick one —');
@@ -265,32 +305,34 @@
     const list = people
       .filter(p => p.role !== 'owner' && outlet && p.outlet === outlet)
       .map(p => ({ value: p.id, label: p.full_name || p.email }));
-    ['consultant', 'serviceStaff', 'productSeller'].forEach(id => {
+    ['consultant', 'productSeller', 'serviceStaff', 'serviceStaff2'].forEach(id => {
       const keep = $(id).value;
       fillSelect($(id), list, outlet ? '— None —' : '— Pick an outlet first —');
       if (list.some(x => x.value === keep)) $(id).value = keep;
     });
-    // Handy default: the person keying in is the consultant
-    if (!$('consultant').value && list.some(x => x.value === me.id)) $('consultant').value = me.id;
   }
 
-  // Picking an item fills in its price (can still be changed)
-  function priceOf(group, name) {
-    const item = ((settings.catalog || {})[group] || []).find(i => i.name === name);
-    return item ? Number(item.price) : 0;
+  // Prices from the catalog (can still be changed)
+  function catalogPrice(name) {
+    const cat = settings.catalog || {};
+    const item = [...(cat.treatments || []), ...(cat.services || []), ...(cat.products || [])]
+      .find(i => i.name.toLowerCase() === (name || '').trim().toLowerCase());
+    return item ? Number(item.price) : null;
   }
   $('treatment').addEventListener('change', () => {
-    $('treatmentAmount').value = $('treatment').value ? priceOf('treatments', $('treatment').value).toFixed(2) : '';
+    const p = catalogPrice($('treatment').value);
+    if (p != null && !num('treatmentAmount')) $('treatmentAmount').value = p.toFixed(2);
     update();
   });
   $('service').addEventListener('change', () => {
-    $('serviceAmount').value = $('service').value ? priceOf('services', $('service').value).toFixed(2) : '';
+    const p = catalogPrice($('service').value);
+    if (p != null && !num('serviceAmount')) $('serviceAmount').value = p.toFixed(2);
     update();
   });
   $('product').addEventListener('change', () => {
     if ($('product').value) {
       if (!parseInt($('productQty').value)) $('productQty').value = 1;
-      $('productAmount').value = (priceOf('products', $('product').value) * parseInt($('productQty').value)).toFixed(2);
+      $('productAmount').value = (catalogPrice($('product').value) * parseInt($('productQty').value)).toFixed(2);
     } else {
       $('productQty').value = ''; $('productAmount').value = '';
     }
@@ -298,21 +340,39 @@
   });
   $('productQty').addEventListener('input', () => {
     const q = parseInt($('productQty').value) || 0;
-    if ($('product').value) $('productAmount').value = (priceOf('products', $('product').value) * q).toFixed(2);
+    if ($('product').value) $('productAmount').value = (catalogPrice($('product').value) * q).toFixed(2);
     update();
   });
+
+  // Package helper: price ÷ sessions = session amount
+  function pkgCalc() {
+    const price = num('pkgPrice'), n = parseInt($('pkgSessions').value) || 0;
+    if (price > 0 && n > 0) {
+      const each = Math.round(price / n * 100) / 100;
+      $('serviceAmount').value = each.toFixed(2);
+      $('pkgHint').textContent = `= ${App.rm(each)} per session`;
+    } else {
+      $('pkgHint').textContent = '';
+    }
+    update();
+  }
+  $('pkgPrice').addEventListener('input', pkgCalc);
+  $('pkgSessions').addEventListener('input', pkgCalc);
+
   $('outlet').addEventListener('change', () => { fillPeople(); update(); });
   document.querySelectorAll('input[name=voucher]').forEach(r => r.addEventListener('change', () => {
     $('voucherCodeBox').classList.toggle('hidden', !voucherUsed());
   }));
-  ['treatmentAmount', 'productAmount', 'serviceAmount', 'discount', 'phone', 'consultant', 'leadSource']
+  ['treatmentAmount', 'productAmount', 'serviceAmount', 'discount', 'phone']
     .forEach(id => $(id).addEventListener('input', update));
+  ['consultant', 'leadSource', 'serviceStaff', 'serviceStaff2'].forEach(id => $(id).addEventListener('change', update));
 
   const voucherUsed = () => document.querySelector('input[name=voucher]:checked').value === 'yes';
+  const paid = () => num('treatmentAmount') + num('productAmount');
 
-  // Live total + early warning about review flags (numbers from settings)
+  // Live total + early warning about review flags (same rules as the database)
   function update() {
-    const gross = num('treatmentAmount') + num('productAmount') + num('serviceAmount');
+    const gross = paid();
     const total = gross - num('discount');
     $('totalShow').textContent = App.rm(Math.max(total, 0));
 
@@ -323,32 +383,56 @@
     if (rules.large_sale_rm != null && total > rules.large_sale_rm)
       flags.push(`total is above ${App.rm(rules.large_sale_rm)}`);
     const missing = [];
-    if (!$('phone').value.trim()) missing.push('phone');
-    if (!$('consultant').value) missing.push('consultant');
-    if (!$('leadSource').value) missing.push('lead source');
+    if (gross > 0) {
+      if (!$('phone').value.trim()) missing.push('phone');
+      if (!$('consultant').value) missing.push('consultant');
+      if (!$('leadSource').value) missing.push('lead source');
+    }
+    if (num('serviceAmount') > 0 && !$('serviceStaff').value) missing.push('beautician');
     if (missing.length) flags.push('missing ' + missing.join(', '));
 
     App.showMsg($('flagMsg'), flags.length
-      ? 'This sale will be marked "Needs review" because: ' + flags.join('; ') + '. You can still save it.'
+      ? 'This will be marked "Needs review" because: ' + flags.join('; ') + '. You can still save it.'
       : '', 'info');
   }
+
+  const rateParts = id => {
+    const v = $(id).value;
+    if (!v) return [null, null];
+    const [type, pct] = v.split('|');
+    return [type, Number(pct)];
+  };
 
   // Save
   $('saleForm').addEventListener('submit', async e => {
     e.preventDefault();
     const msg = $('formMsg');
-    const gross = num('treatmentAmount') + num('productAmount') + num('serviceAmount');
+    const gross = paid();
 
     if (!$('saleDate').value) return App.showMsg(msg, 'Please pick the date.', 'error');
     if ($('saleDate').value > todayKL()) return App.showMsg(msg, "The date can't be in the future.", 'error');
     if (!$('outlet').value) return App.showMsg(msg, 'Please pick the outlet.', 'error');
     if (!$('customerName').value.trim()) return App.showMsg(msg, 'Please enter the customer name.', 'error');
-    if (gross <= 0) return App.showMsg(msg, 'Please enter at least one amount (treatment, product or service).', 'error');
-    if (num('discount') > gross) return App.showMsg(msg, "The discount can't be more than the sale amount.", 'error');
+    if (gross <= 0 && num('serviceAmount') <= 0)
+      return App.showMsg(msg, 'Please fill in Paid today, Service done today, or both.', 'error');
+    if (num('discount') > gross) return App.showMsg(msg, "The discount can't be more than the paid amount.", 'error');
     if ($('product').value && !(parseInt($('productQty').value) > 0))
       return App.showMsg(msg, 'Please enter how many of the product were sold.', 'error');
     if (num('productAmount') > 0 && !$('product').value)
       return App.showMsg(msg, 'Please pick which product was sold.', 'error');
+    if (num('treatmentAmount') > 0 && !$('treatment').value.trim())
+      return App.showMsg(msg, 'Please enter which treatment or package was sold.', 'error');
+    if (num('serviceAmount') > 0 && !$('service').value.trim())
+      return App.showMsg(msg, 'Please enter which treatment was done.', 'error');
+    if ($('serviceStaff2').value) {
+      if (!$('serviceStaff').value) return App.showMsg(msg, 'Please pick the 1st beautician before the 2nd.', 'error');
+      if ($('serviceStaff2').value === $('serviceStaff').value)
+        return App.showMsg(msg, 'The 2nd beautician must be a different person.', 'error');
+      if (!$('serviceRate2').value) return App.showMsg(msg, "Please pick the 2nd beautician's rate.", 'error');
+    }
+
+    const [r1Type, r1Pct] = $('serviceStaff').value ? rateParts('serviceRate') : [null, null];
+    const [r2Type, r2Pct] = $('serviceStaff2').value ? rateParts('serviceRate2') : [null, null];
 
     const row = {
       sale_date: $('saleDate').value,
@@ -356,39 +440,47 @@
       customer_name: $('customerName').value.trim(),
       phone: $('phone').value.trim() || null,
       consultant_id: $('consultant').value || null,
-      service_staff_id: $('serviceStaff').value || null,
       product_seller_id: $('productSeller').value || null,
-      treatment: $('treatment').value || null,
+      treatment: $('treatment').value.trim() || null,
       product: $('product').value || null,
       product_qty: $('product').value ? parseInt($('productQty').value) || 0 : 0,
-      service: $('service').value || null,
       treatment_amount: num('treatmentAmount'),
       product_amount: num('productAmount'),
-      service_amount: num('serviceAmount'),
       discount: num('discount'),
+      payment_method: gross > 0 ? ($('paymentMethod').value || null) : null,
+      service: $('service').value.trim() || null,
+      service_amount: num('serviceAmount'),
+      service_staff_id: $('serviceStaff').value || null,
+      service_rate_type: r1Type,
+      service_rate_pct: r1Pct,
+      service_staff2_id: $('serviceStaff2').value || null,
+      service2_rate_type: r2Type,
+      service2_rate_pct: r2Pct,
       voucher_used: voucherUsed(),
       voucher_code: voucherUsed() ? ($('voucherCode').value.trim() || null) : null,
       referred_by: $('referredBy').value.trim() || null,
       lead_source: $('leadSource').value || null,
       campaign: $('campaign').value.trim() || null,
-      payment_method: $('paymentMethod').value || null,
       notes: $('notes').value.trim() || null,
     };
 
     $('saveBtn').disabled = true; $('saveBtn').textContent = 'Saving…';
     const { data, error } = await sb.from('sales').insert(row)
       .select('id, total_sale, status, review_reasons').single();
-    $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save sale';
+    $('saveBtn').disabled = false; $('saveBtn').textContent = 'Save';
     if (error) return App.showMsg(msg, App.friendlyError(error), 'error');
 
+    const what = gross > 0 ? `paid ${App.rm(data.total_sale)}` : 'service recorded (no payment)';
     const extra = data.status === 'Needs review'
       ? ` It's marked "Needs review" (${(data.review_reasons || []).join(', ')}).` : '';
-    App.showMsg(msg, `Saved! ${row.customer_name} · ${App.rm(data.total_sale)}.${extra} Ready for the next sale.`, 'ok');
+    App.showMsg(msg, `Saved! ${row.customer_name} · ${what}.${extra} Ready for the next one.`, 'ok');
 
-    // Clear the form for the next sale (keep date, outlet & staff)
-    ['customerName', 'phone', 'treatmentAmount', 'productAmount', 'productQty', 'serviceAmount', 'discount',
+    // Clear the form for the next customer (keep date, outlet & staff)
+    ['customerName', 'phone', 'treatment', 'treatmentAmount', 'productAmount', 'productQty', 'discount',
+     'service', 'serviceAmount', 'pkgPrice', 'pkgSessions',
      'voucherCode', 'referredBy', 'campaign', 'notes'].forEach(id => $(id).value = '');
-    ['treatment', 'product', 'service', 'leadSource', 'paymentMethod'].forEach(id => $(id).value = '');
+    ['product', 'leadSource', 'paymentMethod', 'serviceStaff2', 'serviceRate2'].forEach(id => $(id).value = '');
+    $('pkgHint').textContent = '';
     document.querySelector('input[name=voucher][value=no]').checked = true;
     $('voucherCodeBox').classList.add('hidden');
     update();

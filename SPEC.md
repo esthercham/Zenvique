@@ -48,34 +48,36 @@ Note: a manager sees **only their assigned outlet**. A manager can fix a sale, b
 | Outlet | Bangsar (must be filled in) |
 | Customer Name | Sample Customer 1 |
 | Phone | 012-345 6789 |
+| **Paid today (personal sales)** | |
 | Consultant / Client Owner | Staff A |
-| Service Staff | Staff B |
+| Treatment / package sold | Hifu 10 sessions |
+| Treatment Amount | RM 3,880.00 |
 | Product Seller | Staff C |
-| Treatment | Facial Basic |
 | Product | Serum 30ml |
 | Product Qty | 1 |
-| Service | Eyebrow Shaping |
-| Treatment Amount | RM 200.00 |
 | Product Amount | RM 120.00 |
-| Service Amount | RM 50.00 |
 | Discount / Promo | RM 20.00 |
+| **Service done today (beautician commission)** | |
+| Treatment done | Discovered trt 2/4 |
+| Session Amount | RM 199.50 (package RM 798 ÷ 4 sessions). This is not money paid |
+| Beautician + rate | Staff B · FULL 5% |
+| 2nd Beautician + rate (if shared) | Staff D · SHARE 2% |
+| **Other** | |
 | Voucher Used | Yes / No |
 | Voucher Type / Code | NEWYEAR10 |
 | Referral Source / Referred By | Sample Customer 5 |
 | Lead Source | Instagram, Walk-in, Facebook, Referral … |
 | Campaign Name | Nov Glow Promo |
-| Payment Method | Cash, Card, eWallet, Bank Transfer |
-| Total Sale | worked out automatically: Treatment + Product + Service − Discount |
-| Consultant Commission | worked out automatically |
-| Service Staff Commission | worked out automatically |
-| Product Seller Commission | worked out automatically |
+| Payment Method | Bank Transfer, Cash, Card, E-Wallet, SPayLater / ShopeePay, Atomy |
+| Total Sale (paid today) | worked out automatically: Treatment + Product − Discount |
+| Consultant, Product Seller, Beautician and 2nd Beautician Commission | worked out automatically (see section E) |
 | Status | OK / Needs review / Pending approval |
 | Proposed Change | the manager's fix, waiting for owner approval (old values stay in use until approved) |
 | Change Reason | why the manager changed it, e.g. "wrong amount keyed in" |
 | Notes | free text |
 | (automatic) ID, created at, created by | |
 
-Consultant, Service Staff and Product Seller are kept **separately** because they can be different people. Lead Source and Voucher are also kept **separately**.
+Consultant, Beautician(s) and Product Seller are kept **separately** because they can be different people. Lead Source and Voucher are also kept **separately**. A row can be a payment, a service done, or both. A package session with no payment is a row with RM 0.00 paid and a Service line.
 
 ### Business table 2 — Stock (one row per product per location)
 
@@ -101,7 +103,7 @@ Consultant, Service Staff and Product Seller are kept **separately** because the
 | Screen | Staff | Manager | Owner |
 |---|---|---|---|
 | Login | ✓ | ✓ | ✓ |
-| **New Sale**: form with outlet, customer, the 3 staff roles, items, amounts, voucher, referral, lead source, payment | ✓ | ✓ | ✓ |
+| **New Sale**: outlet, customer, *Paid today* (treatment, product, consultant, seller, discount, payment) and/or *Service done today* (treatment done, session amount, beautician(s) and rate), voucher, referral, lead source | ✓ | ✓ | ✓ |
 | **My Sales & Commission**: this month's sales and my commission | ✓ | ✓ | ✓ |
 | **Outlet Dashboard**: daily and monthly sales, staff performance, treatment vs product, lead source / voucher / referral results | | ✓ | ✓ (pick any outlet) |
 | **Review List**: sales marked "Needs review" or "Pending approval". Manager fixes the sale; owner sees old vs new side by side and clicks Approve or Reject | | ✓ (fix) | ✓ (approve / reject) |
@@ -120,9 +122,13 @@ Every screen works on a phone.
 
 | Rule | Starting value |
 |---|---|
-| Consultant commission | **10%** of the Treatment Amount |
-| Service Staff commission | **5%** of the Service Amount |
-| Product Seller commission | **5%** of the Product Amount |
+| Consultant commission (personal sales) | **1%** of the Treatment Amount, after its share of the discount |
+| Product Seller commission | **5%** of the Product Amount, after its share of the discount |
+| Beautician (service) commission | Session Amount × the rate picked: **FULL 5%**, **FOC 1% / 2% / 3%**, or **SHARE 1% / 2% / 3% / 4%** |
+| 2nd Beautician (shared treatment) | Session Amount × their own rate (usually a SHARE %) |
+| Discount sharing | the discount is shared between Treatment and Product by size (e.g. RM 200 + RM 100 with RM 30 off → RM 180 + RM 90) |
+| Rounding | commission is rounded **down** to the sen (RM 199.50 × 5% = RM 9.97) |
+| Monthly commission view | per person, per outlet: Treatment 1% + Product 5% + Service total, as in the current commission sheet |
 | Commission is worked out automatically when a sale is saved, and again if the sale is edited | — |
 | Selling a product lowers **that outlet's** stock by the Product Qty | — |
 | **Low Stock** | when quantity is **equal to or below** the reorder level |
@@ -134,9 +140,9 @@ A sale is marked **"Needs review"** when any of these happen:
 
 | Flag | Starting value |
 |---|---|
-| Big discount | discount is **more than 30%** of (Treatment + Product + Service) |
+| Big discount | discount is **more than 30%** of (Treatment + Product) |
 | Large sale | Total Sale is **above RM 5,000.00** |
-| Missing details | no Phone, **or** no Consultant, **or** no Lead Source |
+| Missing details | money paid but no Phone, **or** no Consultant, **or** no Lead Source; **or** a service done with no Beautician |
 | Stock doesn't tally | the sale would take stock **below 0** |
 
 Other warnings (go to the Alerts box, not to a single sale):

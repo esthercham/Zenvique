@@ -2,6 +2,8 @@
 -- Zenvique System — schema.sql  (step 1: the database)
 -- Paste this whole file into Supabase > SQL Editor and click Run.
 -- Safe to run more than once.
+-- New project? Run the files in order: schema.sql, 02_outlet_stock.sql,
+-- 03_commission_rules.sql (03 replaces the commission rules below).
 -- =====================================================================
 
 
