@@ -24,7 +24,13 @@ Zenvique has several outlets and one HQ store. This system lets us:
 |---|---|---|---|
 | **Sales** – see | Only sales they're named in (Consultant, Service Staff or Product Seller) or typed in themselves | All sales at **their own outlet** | All sales, all outlets |
 | **Sales** – add | Yes (for their outlet) | Yes (their outlet) | Yes (any outlet) |
-| **Sales** – edit | Only sales they typed in | Any sale at their outlet, **but the change waits for owner approval** | Any sale (changes apply straight away). Approves or rejects manager changes |
+| **Sales** – edit | Only sales they typed in | Any sale at their outlet, **but the change waits for owner approval** (this includes **status changes**: Transaction, Payment, Review) | Any sale (changes apply straight away). Approves or rejects manager changes |
+| **Customers** – see | Customers they served or added | Customers of their outlet | All |
+| **Customers** – add | Yes (automatically when a sale is saved) | Yes | Yes |
+| **Customers** – edit (status, VIP, birthday…) | No | Yes, **waits for owner approval** | Yes |
+| **Customers** – delete | No | No | Yes |
+| **Stock issue status** (Damaged, Expired…) | No | Their outlet, **waits for owner approval** | Yes |
+| **Alerts box** | Their own sales, commission and customers | Their outlet | All outlets |
 | **Sales** – delete | No | No | Yes |
 | **Commission** – see | **Only their own share** | **Only their own share** | Everyone |
 | **Stock** – see | No | Their outlet only | HQ + every outlet + grand total |
@@ -39,6 +45,31 @@ Note: a manager sees **only their assigned outlet**. A manager can fix a sale, b
 ---
 
 ## C. Data (what we store)
+
+*On 17 Nov 2026 the owner approved a **3rd business table, Customers** (client database), above the usual limit of 2.*
+
+### Statuses on every sale
+
+| Status | Choices | Notes |
+|---|---|---|
+| Transaction Status | Completed / Cancelled / Refunded | Cancelled and Refunded sales earn **no commission**, give the product **back to stock**, and are left out of sales totals |
+| Payment Status | Paid / Partial / Outstanding | Partial and Outstanding need a **Balance owed (RM)** and a **Due date** |
+| Review Status | OK / Needs review / Pending approval | as before |
+| Customer Status | New / Active / Follow-up / Inactive (+ VIP yes/no) | kept on the **customer**, not the sale |
+| Stock Issue Status | OK / Damaged / Expired / Missing / Recount needed | kept on each **stock** line |
+
+### Business table 3 — Customers (client database)
+
+| Field | Example |
+|---|---|
+| Name, Phone, Email | Cindy Wong, 012-345 6789 |
+| Birthday | 17 Nov 1990 |
+| Home outlet | Eco Ardence |
+| Customer Status, VIP | Active, Yes |
+| Lead source, Referred by, Notes | Instagram, Old Client |
+| Visits, Total spend, First visit, Last visit | worked out automatically from Completed sales |
+
+Every sale is linked to a customer. When a sale is saved, the system finds the customer by **phone**, or by **name at that outlet** if there's no phone. If there's no match, it creates a new customer.
 
 ### Business table 1 — Sales (one row per transaction)
 
@@ -142,6 +173,34 @@ Every screen works on a phone.
 | New customer | a customer (matched by phone, or by name if no phone) whose **first visit to that outlet** is in the chosen month |
 | Sales Volume | number of transactions with money paid (package sessions with RM 0.00 paid are counted as Service Done instead) |
 
+| Commission rates used | the % in force when a sale is saved is stored on the sale, so later rule changes don't rewrite old commission (an edit uses the rates of the day) |
+
+### Row colours and alerts (all numbers in Settings → Colour rules)
+
+**Red = Act now**
+
+| Rule | Starting value |
+|---|---|
+| Critical low stock | quantity is 0, or at/below **50%** of the reorder level |
+| Overdue outstanding payment | balance still owed **0 days** after the due date |
+| Invalid / incomplete sale | an amount with no item named, or Partial/Outstanding without balance or due date |
+| Missing staff | Treatment without Consultant, Service without Beautician, or Product without Product Seller |
+| Commission calculation error | saved commission doesn't match the rates saved on the sale |
+
+**Amber = Watch**
+
+| Rule | Starting value |
+|---|---|
+| Low stock | at or below the reorder level |
+| Behind sales target | branch sales are below **80%** of where they should be by today (target × day ÷ days in month) |
+| Partial / outstanding payment | not yet overdue |
+| Needs review / Pending approval | any such sale |
+| Missing marketing details | paid sale with no lead source; "Referral" with no name; voucher used with no type/code |
+| Unusually high discount | discount above **20%** of the paid amount |
+| Your sale was changed (staff) | someone else edited a sale with your name in the last **7 days** |
+
+Alerts look back over the last **90 days** of sales.
+
 A sale is marked **"Needs review"** when any of these happen:
 
 | Flag | Starting value |
@@ -219,4 +278,11 @@ Other warnings (go to the Alerts box, not to a single sale):
 | Owner | Sales marked "Needs review", quiet outlets, stock counts that don't tally | Alerts box |
 | Owner | Monthly summary (optional): outlet sales, commission, lead sources | "Monthly summary" button that opens a pre-typed WhatsApp message |
 
-WhatsApp buttons only **open** a pre-typed message. A person always checks it and presses Send. Nothing is ever sent to customers automatically.
+**Alerts box at the top of every user's page**, Red first and then Amber, with a small legend:
+- **Staff:** only alerts about their own sales, commission and customers
+- **Manager:** only alerts for their assigned outlet
+- **Owner:** alerts across all outlets, including every change waiting for approval
+
+When an alert needs follow-up with a customer (e.g. overdue payment) or with a staff member (e.g. missing details), it shows a **Send WhatsApp** button with the message already typed. Staff phone numbers come from their profile.
+
+WhatsApp buttons only **open** a pre-typed message. A person always checks it and presses Send. Nothing is ever sent to customers automatically. Every status change, approval, rejection and manual adjustment is written to the History log.
