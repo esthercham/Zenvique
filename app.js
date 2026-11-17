@@ -79,6 +79,46 @@ const App = {
     return 'Something went wrong. Please try again.';
   },
 
+  // Fetch ALL rows (Supabase sends max 1,000 per request). build = () => a fresh query.
+  async fetchAll(build) {
+    const size = 1000;
+    let from = 0, out = [];
+    for (;;) {
+      const { data, error } = await build().range(from, from + size - 1);
+      if (error) throw error;
+      out = out.concat(data || []);
+      if (!data || data.length < size) return out;
+      from += size;
+    }
+  },
+
+  // ---- Dates & months ----
+  todayKL() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date()); },
+  ym(d) { return String(d).slice(0, 7); },
+  monthEnd(m) { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10); },
+  addMonths(m, n) { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo - 1 + n, 1)).toISOString().slice(0, 7); },
+  monthLabel(m) { return new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }); },
+  dateTime(d) {
+    return new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kuala_Lumpur' });
+  },
+
+  // A sale's paid total split into treatment / product (after discount)
+  shares(s) {
+    const gross = Number(s.treatment_amount) + Number(s.product_amount);
+    const f = gross > 0 ? Number(s.total_sale) / gross : 0;
+    return { trt: Number(s.treatment_amount) * f, prod: Number(s.product_amount) * f };
+  },
+  custKey(s) { return (s.phone || '').replace(/\D/g, '') || (s.customer_name || '').trim().toLowerCase(); },
+
+  // Owner admin tabs (shown at the top of owner pages)
+  ownerTabs(active) {
+    const tabs = [['owner.html', 'Overview'], ['users.html', 'Users'], ['settings.html', 'Settings'],
+                  ['history.html', 'History'], ['export.html', 'Download'], ['dashboard.html', 'Manager view']];
+    return `<nav class="tabbar">${tabs.map(([href, label]) =>
+      `<a href="${href}" class="${href === active ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
+  },
+
   // Show a message in a box: type = 'error' | 'ok' | 'info'
   showMsg(el, text, type = 'info') {
     if (!el) return;

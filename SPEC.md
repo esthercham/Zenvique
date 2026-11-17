@@ -108,10 +108,13 @@ Consultant, Beautician(s) and Product Seller are kept **separately** because the
 | **Manager Dashboard** (own outlet only): Branch Total Sales, Sales Target Achievement % (target, actual, remaining), My Personal Sales (sales where I am the Consultant, still counted in the branch total), Sales Volume, Treatment Sales; then Product Sales, Service Done, New Customers, Low Stock, 6-month trend, treatment / product breakdown, lead source, referral source, voucher usage, stock inventory, alerts. No other staff's commission, no other outlets | | ✓ | ✓ (pick any outlet) |
 | **Review List**: sales marked "Needs review" or "Pending approval". Manager fixes the sale; owner sees old vs new side by side and clicks Approve or Reject | | ✓ (fix) | ✓ (approve / reject) |
 | **Stock**: outlet stock, low-stock list, enter a stock count | | ✓ | ✓ |
-| **Owner Dashboard**: compare all outlets, all staff commission, lead-source breakdown | | | ✓ |
+| **Owner Dashboard**: pick Month / Quarter / Year. All outlets total sales, target vs actual, sales volume, treatment / product / service, total commission, new customers, low stock; outlet comparison (sales, target, achieved %, volume…; click an outlet to open its Manager view); monthly / quarterly / yearly trend; staff performance; stock across all locations; lead source, referral, voucher | | | ✓ |
 | **HQ Stock & Transfers**: HQ stock, move stock from HQ to an outlet, grand total | | | ✓ |
-| **Settings**: outlets, items and prices, commission %, alert numbers | | | ✓ |
-| **Users & Roles** | | | ✓ |
+| **Owner tabs**: Overview · Users · Settings · History · Download · Manager view | | | ✓ |
+| **Users** tab: add user (send the sign-up link by copy or WhatsApp), change role, assign outlet, switch on/off. The owner can't switch themselves off | | | ✓ |
+| **Settings** tab: monthly sales target per outlet, commission % and beautician rates, treatment / service / product lists with prices, reorder levels, lead sources, voucher types, review rules | | | ✓ |
+| **History** tab: who changed what and when, with before → after values | | | ✓ |
+| **Download** tab: sales, commission records, commission summary (per person per outlet), inventory, customers, lead sources, voucher usage as CSV (opens in Excel) | | | ✓ |
 | **Alerts box** (on every dashboard) | ✓ | ✓ | ✓ |
 
 Every screen works on a phone.

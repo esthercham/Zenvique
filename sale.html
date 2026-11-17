@@ -209,7 +209,8 @@
           </div>
           <div id="voucherCodeBox" class="hidden">
             <label for="voucherCode">Voucher type / code</label>
-            <input id="voucherCode" type="text" autocomplete="off" placeholder="e.g. NEWYEAR10">
+            <input id="voucherCode" type="text" list="voucherList" autocomplete="off" placeholder="Pick a type or type a code">
+            <datalist id="voucherList"></datalist>
           </div>
         </div>
         <label for="notes">Notes</label>
@@ -253,7 +254,7 @@
     try {
       const [{ data: s, error: e1 }, { data: p, error: e2 }] = await Promise.all([
         sb.from('settings').select('key, value')
-          .in('key', ['outlets', 'catalog', 'lead_sources', 'payment_methods', 'review_rules', 'service_rates']),
+          .in('key', ['outlets', 'catalog', 'lead_sources', 'payment_methods', 'review_rules', 'service_rates', 'voucher_types']),
         sb.from('profiles').select('id, full_name, email, role, outlet, active').eq('active', true).order('full_name'),
       ]);
       if (e1) throw e1;
@@ -289,6 +290,7 @@
     fillSelect($('serviceRate2'), rates, '— Pick rate —');
 
     fillSelect($('leadSource'), (settings.lead_sources || []).map(x => ({ value: x, label: x })), '— Pick one —');
+    $('voucherList').innerHTML = (settings.voucher_types || []).map(v => `<option value="${App.esc(v)}">`).join('');
     fillSelect($('paymentMethod'), (settings.payment_methods || []).map(x => ({ value: x, label: x })), '— Pick one —');
 
     $('saleDate').value = todayKL();

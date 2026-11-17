@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    .rowform { display: grid; gap: 8px; grid-template-columns: 1fr 140px auto; align-items: center; margin-top: 6px; }
+    .rowform.rate { grid-template-columns: 1fr 120px auto; }
+    .rowform button.x { background: transparent; color: var(--danger); border: 1px solid var(--line); padding: 8px 12px; }
+    .grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .rowform { grid-template-columns: 1fr 110px auto; } }
+    .save { margin-top: 14px; }
+    textarea { min-height: 150px; }
+    .items h3 { margin: 18px 0 0; font-size: 1rem; }
+    td input { padding: 7px 8px; max-width: 110px; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">Settings</h1>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div id="ownerTabs"></div>
+    <div id="pageMsg" class="msg"></div>
+    <p class="muted" style="margin:0">Every change is saved in the History tab with the before and after values.</p>
+
+    <!-- 1. Targets -->
+    <div class="card section">
+      <h2>Monthly sales targets</h2>
+      <p class="muted" style="margin:0">Managers see their outlet's target on the Manager Dashboard but can't change it.</p>
+      <label for="tMonth">Month</label>
+      <input id="tMonth" type="month" style="max-width:220px">
+      <div id="tFields" class="grid2"></div>
+      <button type="button" class="save" id="saveTargets">Save targets</button>
+      <div class="msg" id="msgTargets"></div>
+    </div>
+
+    <!-- 2. Commission -->
+    <div class="card section">
+      <h2>Commission rules</h2>
+      <div class="grid2">
+        <div>
+          <label for="cConsultant">Consultant: % of Treatment (personal sales)</label>
+          <input id="cConsultant" type="number" min="0" max="100" step="0.01">
+        </div>
+        <div>
+          <label for="cSeller">Product Seller: % of Product</label>
+          <input id="cSeller" type="number" min="0" max="100" step="0.01">
+        </div>
+      </div>
+      <p class="muted" style="margin:14px 0 0">Both are worked out after discount and rounded down to the sen.</p>
+      <label style="margin-top:16px">Beautician service rates (choices shown on New Sale)</label>
+      <div id="rates"></div>
+      <button type="button" class="ghost" id="addRate" style="margin-top:8px">+ Add rate</button>
+      <div><button type="button" class="save" id="saveComm">Save commission rules</button></div>
+      <div class="msg" id="msgComm"></div>
+    </div>
+
+    <!-- 3. Item lists -->
+    <div class="card section items">
+      <h2>Treatment, service &amp; product lists</h2>
+      <p class="muted" style="margin:0">Prices fill in automatically on New Sale and can still be changed there.
+        A new product gets a stock line (0 in stock) at HQ and every outlet.
+        Renaming a product starts a new stock line, so the old name's stock stays as it was.</p>
+      <h3>Treatments / packages</h3><div id="lTreatments"></div>
+      <button type="button" class="ghost" data-add="lTreatments" style="margin-top:8px">+ Add treatment</button>
+      <h3>Services</h3><div id="lServices"></div>
+      <button type="button" class="ghost" data-add="lServices" style="margin-top:8px">+ Add service</button>
+      <h3>Products</h3><div id="lProducts"></div>
+      <button type="button" class="ghost" data-add="lProducts" style="margin-top:8px">+ Add product</button>
+      <div><button type="button" class="save" id="saveItems">Save lists</button></div>
+      <div class="msg" id="msgItems"></div>
+    </div>
+
+    <!-- 4. Reorder levels -->
+    <div class="card section">
+      <h2>Reorder levels</h2>
+      <p class="muted" style="margin:0">An item shows as <span class="low">Low stock</span> when its quantity is at or below its reorder level.</p>
+      <label for="rLoc">Location</label>
+      <select id="rLoc" style="max-width:260px"></select>
+      <div class="tablewrap" id="rTable" style="margin-top:10px"></div>
+      <button type="button" class="save" id="saveReorder">Save reorder levels</button>
+      <div class="msg" id="msgReorder"></div>
+    </div>
+
+    <!-- 5. Options -->
+    <div class="card section">
+      <h2>Lead sources &amp; voucher types</h2>
+      <p class="muted" style="margin:0">One per line.</p>
+      <div class="grid2">
+        <div><label for="oLead">Lead sources</label><textarea id="oLead"></textarea></div>
+        <div><label for="oVoucher">Voucher types</label><textarea id="oVoucher"></textarea></div>
+      </div>
+      <button type="button" class="save" id="saveOptions">Save options</button>
+      <div class="msg" id="msgOptions"></div>
+    </div>
+
+    <!-- 6. Review rules -->
+    <div class="card section">
+      <h2>Review rules</h2>
+      <p class="muted" style="margin:0">A sale is marked "Needs review" when it goes over these.</p>
+      <div class="grid2">
+        <div><label for="rDiscount">Big discount: more than (%)</label><input id="rDiscount" type="number" min="0" max="100" step="1"></div>
+        <div><label for="rLarge">Large sale: above (RM)</label><input id="rLarge" type="number" min="0" step="0.01"></div>
+      </div>
+      <button type="button" class="save" id="saveRules">Save review rules</button>
+      <div class="msg" id="msgRules"></div>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let S = {}, stock = [];
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  (async () => {
+    await App.requireRole(['owner']);
+    $('ownerTabs').innerHTML = App.ownerTabs('settings.html');
+    try {
+      const [{ data, error }, st] = await Promise.all([
+        sb.from('settings').select('key, value'),
+        App.fetchAll(() => sb.from('stock').select('id, location, product, quantity, reorder_level').order('product')),
+      ]);
+      if (error) throw error;
+      (data || []).forEach(r => S[r.key] = r.value);
+      stock = st;
+    } catch (err) { return App.showMsg($('pageMsg'), App.friendlyError(err), 'error'); }
+
+    // Targets
+    $('tMonth').value = App.ym(App.todayKL());
+    $('tMonth').addEventListener('change', fillTargets);
+    fillTargets();
+
+    // Commission
+    const c = S.commission || {};
+    $('cConsultant').value = c.consultant_pct ?? '';
+    $('cSeller').value = c.product_seller_pct ?? '';
+    (S.service_rates || []).forEach(r => addRate(r.type, r.pct));
+    $('addRate').addEventListener('click', () => addRate('SHARE', ''));
+
+    // Items
+    const cat = S.catalog || {};
+    (cat.treatments || []).forEach(i => addItem('lTreatments', i.name, i.price));
+    (cat.services || []).forEach(i => addItem('lServices', i.name, i.price));
+    (cat.products || []).forEach(i => addItem('lProducts', i.name, i.price));
+    document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => addItem(b.dataset.add, '', '')));
+
+    // Reorder
+    const locs = [...new Set(stock.map(s => s.location))];
+    const hq = (S.hq || {}).name || 'HQ';
+    locs.sort((a, b) => (a === hq ? -1 : b === hq ? 1 : a.localeCompare(b)));
+    $('rLoc').innerHTML = locs.map(l => `<option>${App.esc(l)}</option>`).join('');
+    $('rLoc').addEventListener('change', fillReorder);
+    fillReorder();
+
+    // Options
+    $('oLead').value = (S.lead_sources || []).join('\n');
+    $('oVoucher').value = (S.voucher_types || []).join('\n');
+
+    // Rules
+    const rr = S.review_rules || {};
+    $('rDiscount').value = rr.big_discount_pct ?? '';
+    $('rLarge').value = rr.large_sale_rm ?? '';
+  })();
+
+  async function saveSetting(key, value, msgEl, btn) {
+    btn.disabled = true;
+    const { error } = await sb.from('settings').upsert({ key, value, updated_at: new Date().toISOString() });
+    btn.disabled = false;
+    if (error) { App.showMsg(msgEl, App.friendlyError(error), 'error'); return false; }
+    S[key] = value;
+    App.showMsg(msgEl, 'Saved.', 'ok');
+    return true;
+  }
+  const lines = id => [...new Set($(id).value.split('\n').map(x => x.trim()).filter(Boolean))];
+  const numOk = (v, max) => v !== '' && !isNaN(v) && Number(v) >= 0 && (max == null || Number(v) <= max);
+
+  // ---------- Targets ----------
+  function fillTargets() {
+    const m = $('tMonth').value;
+    const t = (S.sales_targets || {})[m] || {};
+    $('tFields').innerHTML = (S.outlets || []).map(o => `
+      <div><label>${App.esc(o)} (RM)</label>
+      <input type="number" min="0" step="0.01" data-outlet="${App.esc(o)}" value="${t[o] ?? ''}" placeholder="No target"></div>`).join('');
+  }
+  $('saveTargets').addEventListener('click', e => {
+    const m = $('tMonth').value;
+    if (!m) return App.showMsg($('msgTargets'), 'Please pick a month.', 'error');
+    const month = {};
+    for (const inp of document.querySelectorAll('#tFields input')) {
+      if (inp.value === '') continue;
+      if (!numOk(inp.value)) return App.showMsg($('msgTargets'), `Please enter a valid amount for ${inp.dataset.outlet}.`, 'error');
+      month[inp.dataset.outlet] = Math.round(Number(inp.value) * 100) / 100;
+    }
+    const all = { ...(S.sales_targets || {}) };
+    if (Object.keys(month).length) all[m] = month; else delete all[m];
+    saveSetting('sales_targets', all, $('msgTargets'), e.target);
+  });
+
+  // ---------- Commission ----------
+  function addRate(type, pct) {
+    const div = document.createElement('div');
+    div.className = 'rowform rate';
+    div.innerHTML = `<select class="r-type">${['FULL', 'FOC', 'SHARE'].map(t => `<option ${t === type ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <input class="r-pct" type="number" min="0" max="10" step="0.5" value="${pct}" placeholder="%">
+      <button type="button" class="x" title="Remove">✕</button>`;
+    div.querySelector('.x').addEventListener('click', () => div.remove());
+    $('rates').appendChild(div);
+  }
+  $('saveComm').addEventListener('click', async e => {
+    const msg = $('msgComm');
+    if (!numOk($('cConsultant').value, 100) || !numOk($('cSeller').value, 100))
+      return App.showMsg(msg, 'Please enter both commission % (0 to 100).', 'error');
+    const rates = [];
+    for (const row of document.querySelectorAll('#rates .rowform')) {
+      const pct = row.querySelector('.r-pct').value;
+      if (!numOk(pct, 10)) return App.showMsg(msg, 'Each beautician rate must be between 0 and 10%.', 'error');
+      const r = { type: row.querySelector('.r-type').value, pct: Number(pct) };
+      if (!rates.some(x => x.type === r.type && x.pct === r.pct)) rates.push(r);
+    }
+    if (!rates.length) return App.showMsg(msg, 'Please keep at least one beautician rate.', 'error');
+    const order = { FULL: 0, FOC: 1, SHARE: 2 };
+    rates.sort((a, b) => order[a.type] - order[b.type] || a.pct - b.pct);
+    const comm = { ...(S.commission || {}), consultant_pct: Number($('cConsultant').value), product_seller_pct: Number($('cSeller').value) };
+    if (await saveSetting('commission', comm, msg, e.target)) {
+      await saveSetting('service_rates', rates, msg, e.target);
+      App.showMsg(msg, 'Saved. New rules apply to sales saved or edited from now on.', 'ok');
+    }
+  });
+
+  // ---------- Items ----------
+  function addItem(listId, name, price) {
+    const div = document.createElement('div');
+    div.className = 'rowform';
+    div.innerHTML = `<input class="i-name" type="text" placeholder="Name" value="${App.esc(name)}">
+      <input class="i-price" type="number" min="0" step="0.01" placeholder="Price RM" value="${price === '' ? '' : Number(price).toFixed(2)}">
+      <button type="button" class="x" title="Remove">✕</button>`;
+    div.querySelector('.x').addEventListener('click', () => div.remove());
+    $(listId).appendChild(div);
+  }
+  function readItems(listId, label) {
+    const out = [];
+    for (const row of document.querySelectorAll(`#${listId} .rowform`)) {
+      const name = row.querySelector('.i-name').value.trim();
+      const price = row.querySelector('.i-price').value;
+      if (!name && price === '') continue;
+      if (!name) throw new Error(`Please give every ${label} a name.`);
+      if (!numOk(price)) throw new Error(`Please enter a price for "${name}".`);
+      if (out.some(i => i.name.toLowerCase() === name.toLowerCase())) throw new Error(`"${name}" is in the ${label} list twice.`);
+      out.push({ name, price: Math.round(Number(price) * 100) / 100 });
+    }
+    return out;
+  }
+  $('saveItems').addEventListener('click', async e => {
+    const msg = $('msgItems');
+    let cat;
+    try {
+      cat = { treatments: readItems('lTreatments', 'treatment'), services: readItems('lServices', 'service'),
+              products: readItems('lProducts', 'product') };
+    } catch (err) { return App.showMsg(msg, err.message, 'error'); }
+    if (!(await saveSetting('catalog', cat, msg, e.target))) return;
+
+    // New products: add a 0-stock line at HQ and every outlet
+    const hq = (S.hq || {}).name || 'HQ';
+    const locs = [hq, ...(S.outlets || [])];
+    const missing = [];
+    cat.products.forEach(p => locs.forEach(l => {
+      if (!stock.some(s => s.product === p.name && s.location === l)) missing.push({ location: l, product: p.name, quantity: 0, reorder_level: 0 });
+    }));
+    if (missing.length) {
+      const { error } = await sb.from('stock').upsert(missing, { onConflict: 'location,product', ignoreDuplicates: true });
+      if (error) return App.showMsg(msg, 'Lists saved, but adding stock lines failed: ' + App.friendlyError(error), 'error');
+      stock = await App.fetchAll(() => sb.from('stock').select('id, location, product, quantity, reorder_level').order('product'));
+      fillReorder();
+      App.showMsg(msg, `Saved. Added ${missing.length} new stock line${missing.length === 1 ? '' : 's'} (0 in stock). Set their reorder levels below.`, 'ok');
+    }
+  });
+
+  // ---------- Reorder ----------
+  function fillReorder() {
+    const loc = $('rLoc').value;
+    const rows = stock.filter(s => s.location === loc);
+    if (!rows.length) { $('rTable').innerHTML = '<p class="empty">No stock items here yet.</p>'; return; }
+    $('rTable').innerHTML = `<table><thead><tr><th>Product</th><th class="num">In stock</th><th class="num">Reorder at</th></tr></thead><tbody>
+      ${rows.map(s => `<tr><td>${App.esc(s.product)}</td>
+        <td class="num ${s.quantity <= s.reorder_level ? 'low' : ''}">${s.quantity}</td>
+        <td class="num"><input type="number" min="0" step="1" data-id="${s.id}" value="${s.reorder_level}"></td></tr>`).join('')}
+      </tbody></table>`;
+  }
+  $('saveReorder').addEventListener('click', async e => {
+    const msg = $('msgReorder');
+    const changes = [];
+    for (const inp of document.querySelectorAll('#rTable input[data-id]')) {
+      const s = stock.find(x => x.id === inp.dataset.id);
+      if (!/^\d+$/.test(inp.value)) return App.showMsg(msg, `Please enter a whole number for ${s.product}.`, 'error');
+      if (Number(inp.value) !== s.reorder_level) changes.push({ s, v: Number(inp.value) });
+    }
+    if (!changes.length) return App.showMsg(msg, 'Nothing changed.', 'info');
+    e.target.disabled = true;
+    for (const c of changes) {
+      const { error } = await sb.from('stock').update({ reorder_level: c.v, updated_at: new Date().toISOString() }).eq('id', c.s.id);
+      if (error) { e.target.disabled = false; return App.showMsg(msg, App.friendlyError(error), 'error'); }
+      c.s.reorder_level = c.v;
+    }
+    e.target.disabled = false;
+    fillReorder();
+    App.showMsg(msg, `Saved ${changes.length} change${changes.length === 1 ? '' : 's'}.`, 'ok');
+  });
+
+  // ---------- Options ----------
+  $('saveOptions').addEventListener('click', async e => {
+    const lead = lines('oLead'), voucher = lines('oVoucher');
+    if (!lead.length) return App.showMsg($('msgOptions'), 'Please keep at least one lead source.', 'error');
+    if (await saveSetting('lead_sources', lead, $('msgOptions'), e.target))
+      await saveSetting('voucher_types', voucher, $('msgOptions'), e.target);
+  });
+
+  // ---------- Review rules ----------
+  $('saveRules').addEventListener('click', e => {
+    if (!numOk($('rDiscount').value, 100) || !numOk($('rLarge').value))
+      return App.showMsg($('msgRules'), 'Please enter both numbers.', 'error');
+    saveSetting('review_rules', { ...(S.review_rules || {}), big_discount_pct: Number($('rDiscount').value),
+      large_sale_rm: Math.round(Number($('rLarge').value) * 100) / 100 }, $('msgRules'), e.target);
+  });
+</script>
+</body>
+</html>

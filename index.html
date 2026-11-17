@@ -112,10 +112,12 @@
     { name: 'Manager Dashboard',      note: 'Branch sales, target, stock, lead sources', roles: ['manager','owner'], href: 'dashboard.html' },
     { name: 'Review List',            note: 'Needs review & pending approval',        roles: ['manager','owner'] },
     { name: 'Stock',                  note: 'Outlet stock & low stock',               roles: ['manager','owner'] },
-    { name: 'Owner Dashboard',        note: 'Compare all outlets',                    roles: ['owner'] },
+    { name: 'Owner Dashboard',        note: 'All outlets, targets, staff, trends',    roles: ['owner'], href: 'owner.html' },
     { name: 'HQ Stock & Transfers',   note: 'Move stock from HQ',                     roles: ['owner'] },
-    { name: 'Settings',               note: 'Outlets, items, commission %, rules',    roles: ['owner'] },
-    { name: 'Users & Roles',          note: 'Set role, outlet, active',               roles: ['owner'], href: 'users.html' },
+    { name: 'Settings',               note: 'Targets, commission, items, reorder levels', roles: ['owner'], href: 'settings.html' },
+    { name: 'Users & Roles',          note: 'Add users, set role, outlet, active',    roles: ['owner'], href: 'users.html' },
+    { name: 'History',                note: 'Who changed what, before & after',       roles: ['owner'], href: 'history.html' },
+    { name: 'Download',               note: 'Sales, commission, stock, customers (CSV)', roles: ['owner'], href: 'export.html' },
   ];
 
   // ---------- Tabs ----------

@@ -47,7 +47,8 @@
       <button type="button" class="ghost" id="logoutBtn">Log out</button>
     </div>
 
-    <div class="filters card" style="padding:14px">
+    <div id="ownerTabs"></div>
+    <div class="filters card" style="padding:14px;margin-bottom:16px">
       <div id="outletPick" class="hidden">
         <label for="outlet">Outlet</label>
         <select id="outlet"></select>
@@ -146,6 +147,7 @@
 
   (async () => {
     me = await App.requireRole(['manager', 'owner']);
+    if (me.role === 'owner') $('ownerTabs').innerHTML = App.ownerTabs('dashboard.html');
     if (me.role === 'manager' && !me.outlet) {
       App.showMsg($('pageMsg'), 'You have no outlet yet. Please ask the owner to assign your outlet.', 'info');
       return;
@@ -159,6 +161,7 @@
     if (me.role === 'owner') {
       const outlets = settings.outlets || [];
       $('outlet').innerHTML = outlets.map(o => `<option>${App.esc(o)}</option>`).join('');
+      try { const pick = sessionStorage.getItem('zv_outlet'); if (pick && outlets.includes(pick)) $('outlet').value = pick; } catch {}
       $('outletPick').classList.remove('hidden');
       $('outlet').addEventListener('change', load);
     }
@@ -177,12 +180,12 @@
     App.showMsg($('pageMsg'), '');
 
     try {
-      const [{ data: hist, error: e1 }, { data: stock, error: e2 }] = await Promise.all([
+      const [hist, { data: stock, error: e2 }] = await Promise.all([
         // All sales for this outlet up to the end of the month (for trend & new customers)
-        sb.from('sales').select(SALE_COLS).eq('outlet', outlet).lte('sale_date', monthEnd(month)).order('sale_date'),
+        App.fetchAll(() => sb.from('sales').select(SALE_COLS).eq('outlet', outlet)
+          .lte('sale_date', monthEnd(month)).order('sale_date').order('id')),
         sb.from('stock').select('product, quantity, reorder_level').eq('location', outlet).order('product'),
       ]);
-      if (e1) throw e1;
       if (e2) throw e2;
       render(outlet, month, hist || [], stock || []);
     } catch (err) {

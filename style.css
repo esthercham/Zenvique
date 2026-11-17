@@ -81,5 +81,36 @@ button.ghost:hover { background: var(--bg); }
 .menu li.live strong { color: var(--brand); }
 .menu li small { display: block; color: var(--muted); }
 .muted { color: var(--muted); }
+.tabbar { display: flex; gap: 4px; overflow-x: auto; margin: 0 0 16px; padding: 4px; background: #fff;
+          border: 1px solid var(--line); border-radius: 10px; }
+.tabbar a { flex: 0 0 auto; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-weight: 600; }
+.tabbar a.active { background: var(--brand); color: #fff; }
+.tabbar a:not(.active):hover { background: var(--bg); }
+/* Shared dashboard pieces */
+.kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.kpi .label { color: var(--muted); font-size: .85rem; font-weight: 600; }
+.kpi .value { font-size: 1.45rem; font-weight: 700; margin-top: 2px; }
+.kpi .small { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+.kpi.minor .value { font-size: 1.15rem; }
+.bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; background: var(--brand); }
+.section { margin-top: 16px; }
+.section h2 { font-size: 1.1rem; margin: 0 0 10px; }
+.cols { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .82rem; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+.low { color: var(--danger); font-weight: 700; }
+.alerts { border-left: 4px solid var(--danger); }
+.alerts ul { margin: 6px 0 0; padding-left: 18px; }
+.empty { color: var(--muted); font-size: .9rem; margin: 4px 0; }
+.chartbox { position: relative; height: 260px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+.filters > div { flex: 1 1 160px; }
+.filters label { margin-top: 0; }
 .link { background: none; border: 0; color: var(--brand); padding: 0; font-weight: 600; cursor: pointer; }
 .link:hover { background: none; text-decoration: underline; }

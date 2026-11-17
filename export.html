@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    .dl { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .dl .card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .dl h3 { margin: 0; font-size: 1rem; }
+    .dl p { margin: 0; color: var(--muted); font-size: .88rem; flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">Download</h1>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div id="ownerTabs"></div>
+
+    <div class="filters card" style="padding:14px">
+      <div><label for="from">From</label><input id="from" type="date"></div>
+      <div><label for="to">To</label><input id="to" type="date"></div>
+      <div><label for="outlet">Outlet</label><select id="outlet"><option value="">All outlets</option></select></div>
+    </div>
+    <p class="muted">Files are CSV and open straight in Excel or Google Sheets. Chinese names are kept.</p>
+    <div id="pageMsg" class="msg"></div>
+
+    <div class="dl section">
+      <div class="card"><h3>Sales records</h3><p>Every sale and service visit with all fields, staff names and status.</p><button data-x="sales">Download</button></div>
+      <div class="card"><h3>Commission records</h3><p>One line per person per sale or visit: treatment 1%, product 5%, service FULL/FOC/SHARE.</p><button data-x="commission">Download</button></div>
+      <div class="card"><h3>Commission summary</h3><p>Per person, per outlet: Treatment, Product and Service commission and total, like the monthly commission sheet.</p><button data-x="commsum">Download</button></div>
+      <div class="card"><h3>Inventory</h3><p>Stock today at HQ and every outlet, with reorder levels and low-stock status.</p><button data-x="inventory">Download</button></div>
+      <div class="card"><h3>Customer records</h3><p>Each customer: phone, outlets, first and last visit, visits, total paid, lead source.</p><button data-x="customers">Download</button></div>
+      <div class="card"><h3>Lead source data</h3><p>Customers and sales by lead source and outlet.</p><button data-x="leads">Download</button></div>
+      <div class="card"><h3>Voucher usage</h3><p>Every sale where a voucher was used.</p><button data-x="vouchers">Download</button></div>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let names = new Map(), settings = {};
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  const SALE_COLS = 'id, sale_date, outlet, customer_name, phone, consultant_id, treatment, treatment_amount, product, ' +
+    'product_qty, product_amount, product_seller_id, discount, total_sale, payment_method, service, service_amount, ' +
+    'service_staff_id, service_rate_type, service_rate_pct, service_staff2_id, service2_rate_type, service2_rate_pct, ' +
+    'voucher_used, voucher_code, referred_by, lead_source, campaign, status, review_reasons, notes';
+
+  const money = v => Number(v || 0).toFixed(2);
+  const who = id => id ? (names.get(id) || '') : '';
+
+  (async () => {
+    await App.requireRole(['owner']);
+    $('ownerTabs').innerHTML = App.ownerTabs('export.html');
+    const m = App.ym(App.todayKL());
+    $('from').value = m + '-01';
+    $('to').value = App.todayKL();
+    try {
+      const [p, { data: s, error }] = await Promise.all([
+        App.fetchAll(() => sb.from('profiles').select('id, full_name, email')),
+        sb.from('settings').select('key, value').in('key', ['outlets', 'hq']),
+      ]);
+      if (error) throw error;
+      p.forEach(x => names.set(x.id, x.full_name || x.email));
+      (s || []).forEach(r => settings[r.key] = r.value);
+      $('outlet').innerHTML += (settings.outlets || []).map(o => `<option>${App.esc(o)}</option>`).join('');
+    } catch (err) { App.showMsg($('pageMsg'), App.friendlyError(err), 'error'); }
+    document.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => run(b)));
+  })();
+
+  // ---- CSV helpers ----
+  function csv(headers, rows) {
+    const cell = v => { const s = v == null ? '' : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    return '﻿' + [headers, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+  }
+  function save(name, text) {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  const rangeName = () => `${$('from').value}_to_${$('to').value}${$('outlet').value ? '_' + $('outlet').value.replace(/\s+/g, '-') : ''}`;
+
+  async function sales() {
+    return App.fetchAll(() => {
+      let q = sb.from('sales').select(SALE_COLS).gte('sale_date', $('from').value).lte('sale_date', $('to').value)
+        .order('sale_date').order('id');
+      if ($('outlet').value) q = q.eq('outlet', $('outlet').value);
+      return q;
+    });
+  }
+  async function commission() {
+    const rows = await App.fetchAll(() => sb.rpc('commission_lines', { p_from: $('from').value, p_to: $('to').value }));
+    return $('outlet').value ? rows.filter(r => r.outlet === $('outlet').value) : rows;
+  }
+
+  const builders = {
+    async sales() {
+      const rows = await sales();
+      return ['sales', csv(
+        ['Date', 'Outlet', 'Customer', 'Phone', 'Consultant', 'Treatment / package', 'Treatment RM', 'Product', 'Qty',
+         'Product RM', 'Product seller', 'Discount RM', 'Total paid RM', 'Payment method', 'Treatment done',
+         'Session RM', 'Beautician', 'Rate', '2nd beautician', '2nd rate', 'Voucher used', 'Voucher', 'Referred by',
+         'Lead source', 'Campaign', 'Status', 'Review reasons', 'Notes'],
+        rows.map(s => [App.date(s.sale_date), s.outlet, s.customer_name, s.phone, who(s.consultant_id), s.treatment,
+          money(s.treatment_amount), s.product, s.product_qty || '', money(s.product_amount), who(s.product_seller_id),
+          money(s.discount), money(s.total_sale), s.payment_method, s.service, money(s.service_amount),
+          who(s.service_staff_id), s.service_rate_type ? `${s.service_rate_type} ${Number(s.service_rate_pct)}%` : '',
+          who(s.service_staff2_id), s.service2_rate_type ? `${s.service2_rate_type} ${Number(s.service2_rate_pct)}%` : '',
+          s.voucher_used ? 'Yes' : 'No', s.voucher_code, s.referred_by, s.lead_source, s.campaign, s.status,
+          (s.review_reasons || []).join('; '), s.notes]))];
+    },
+    async commission() {
+      const rows = await commission();
+      return ['commission', csv(['Date', 'Outlet', 'Staff', 'Type', 'Customer', 'Item', 'Rate', 'Base RM', 'Commission RM'],
+        rows.map(r => [App.date(r.sale_date), r.outlet, r.staff_name || who(r.staff_id), r.kind, r.customer_name,
+          r.item, r.rate_label, money(r.base_amount), money(r.commission)]))];
+    },
+    async commsum() {
+      const rows = await commission();
+      const m = new Map();
+      rows.forEach(r => {
+        const k = r.staff_id + '|' + r.outlet;
+        const g = m.get(k) || { staff: r.staff_name || who(r.staff_id), outlet: r.outlet, tb: 0, tc: 0, pb: 0, pc: 0, sn: 0, sc: 0 };
+        if (r.kind === 'Treatment sale') { g.tb += Number(r.base_amount); g.tc += Number(r.commission); }
+        else if (r.kind === 'Product sale') { g.pb += Number(r.base_amount); g.pc += Number(r.commission); }
+        else { g.sn++; g.sc += Number(r.commission); }
+        m.set(k, g);
+      });
+      const list = [...m.values()].sort((a, b) => a.staff.localeCompare(b.staff) || a.outlet.localeCompare(b.outlet));
+      return ['commission-summary', csv(
+        ['Staff', 'Outlet', 'Treatment sales RM', 'Treatment commission RM', 'Product sales RM', 'Product commission RM',
+         'Services done', 'Service commission RM', 'Total commission RM'],
+        list.map(g => [g.staff, g.outlet, money(g.tb), money(g.tc), money(g.pb), money(g.pc), g.sn, money(g.sc),
+          money(g.tc + g.pc + g.sc)]))];
+    },
+    async inventory() {
+      const rows = await App.fetchAll(() => {
+        let q = sb.from('stock').select('location, product, quantity, reorder_level').order('location').order('product');
+        if ($('outlet').value) q = q.eq('location', $('outlet').value);
+        return q;
+      });
+      return ['inventory', csv(['Location', 'Product', 'In stock', 'Reorder level', 'Status'],
+        rows.map(s => [s.location, s.product, s.quantity, s.reorder_level, s.quantity <= s.reorder_level ? 'Low stock' : 'OK']))];
+    },
+    async customers() {
+      const rows = await sales();
+      const m = new Map();
+      rows.forEach(s => {
+        const k = App.custKey(s); if (!k) return;
+        const g = m.get(k) || { name: s.customer_name, phone: s.phone || '', outlets: new Set(), first: s.sale_date,
+          last: s.sale_date, visits: 0, paid: 0, lead: s.lead_source || '', ref: s.referred_by || '' };
+        g.outlets.add(s.outlet); g.visits++; g.paid += Number(s.total_sale);
+        if (s.sale_date < g.first) g.first = s.sale_date;
+        if (s.sale_date > g.last) { g.last = s.sale_date; g.name = s.customer_name; }
+        if (!g.lead && s.lead_source) g.lead = s.lead_source;
+        if (!g.ref && s.referred_by) g.ref = s.referred_by;
+        if (!g.phone && s.phone) g.phone = s.phone;
+        m.set(k, g);
+      });
+      return ['customers', csv(['Customer', 'Phone', 'Outlets', 'First visit', 'Last visit', 'Visits', 'Total paid RM', 'Lead source', 'Referred by'],
+        [...m.values()].sort((a, b) => a.name.localeCompare(b.name)).map(g =>
+          [g.name, g.phone, [...g.outlets].join('; '), App.date(g.first), App.date(g.last), g.visits, money(g.paid), g.lead, g.ref]))];
+    },
+    async leads() {
+      const rows = (await sales()).filter(s => Number(s.total_sale) > 0);
+      const m = new Map();
+      rows.forEach(s => {
+        const k = (s.lead_source || '(not filled in)') + '|' + s.outlet;
+        const g = m.get(k) || { lead: s.lead_source || '(not filled in)', outlet: s.outlet, n: 0, rm: 0, cust: new Set() };
+        g.n++; g.rm += Number(s.total_sale); g.cust.add(App.custKey(s)); m.set(k, g);
+      });
+      return ['lead-sources', csv(['Lead source', 'Outlet', 'Customers', 'Transactions', 'Sales RM'],
+        [...m.values()].sort((a, b) => b.rm - a.rm).map(g => [g.lead, g.outlet, g.cust.size, g.n, money(g.rm)]))];
+    },
+    async vouchers() {
+      const rows = (await sales()).filter(s => s.voucher_used);
+      return ['vouchers', csv(['Date', 'Outlet', 'Customer', 'Phone', 'Voucher', 'Total paid RM', 'Lead source'],
+        rows.map(s => [App.date(s.sale_date), s.outlet, s.customer_name, s.phone, s.voucher_code, money(s.total_sale), s.lead_source]))];
+    },
+  };
+
+  async function run(btn) {
+    if (!$('from').value || !$('to').value || $('from').value > $('to').value)
+      return App.showMsg($('pageMsg'), 'Please pick a valid date range.', 'error');
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try {
+      const [name, text] = await builders[btn.dataset.x]();
+      save(`zenvique-${name}_${rangeName()}.csv`, text);
+      App.showMsg($('pageMsg'), 'Downloaded. Check your Downloads folder.', 'ok');
+    } catch (err) {
+      App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+</script>
+</body>
+</html>

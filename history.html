@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>History · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <style>
+    .log { border-bottom: 1px solid var(--line); padding: 12px 0; }
+    .log:last-child { border-bottom: 0; }
+    .log-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .log-head strong { text-transform: capitalize; }
+    .chg { margin: 6px 0 0; padding-left: 18px; font-size: .92rem; }
+    .chg li { margin: 2px 0; }
+    .before { color: var(--danger); text-decoration: line-through; }
+    .after { color: var(--ok); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">History</h1>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div id="ownerTabs"></div>
+
+    <div class="filters card" style="padding:14px">
+      <div><label for="from">From</label><input id="from" type="date"></div>
+      <div><label for="to">To</label><input id="to" type="date"></div>
+      <div>
+        <label for="kind">What</label>
+        <select id="kind">
+          <option value="">Everything</option>
+          <option value="sales">Sales</option>
+          <option value="stock">Stock</option>
+          <option value="settings">Settings</option>
+          <option value="profiles">Users &amp; roles</option>
+          <option value="ai_briefs">AI briefs</option>
+        </select>
+      </div>
+      <div><label for="search">Search</label><input id="search" type="search" placeholder="Name, email, outlet…"></div>
+    </div>
+
+    <div id="pageMsg" class="msg"></div>
+    <div class="card section" id="list"><p class="muted">Loading…</p></div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let logs = [], names = new Map();
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  const LABELS = {
+    sale_date: 'Date', outlet: 'Outlet', customer_name: 'Customer', phone: 'Phone', consultant_id: 'Consultant',
+    service_staff_id: 'Beautician', service_staff2_id: '2nd beautician', product_seller_id: 'Product seller',
+    treatment: 'Treatment', product: 'Product', product_qty: 'Qty', service: 'Treatment done',
+    treatment_amount: 'Treatment RM', product_amount: 'Product RM', service_amount: 'Session RM', discount: 'Discount',
+    voucher_used: 'Voucher used', voucher_code: 'Voucher', referred_by: 'Referred by', lead_source: 'Lead source',
+    campaign: 'Campaign', payment_method: 'Payment', notes: 'Notes', service_rate_type: 'Rate type',
+    service_rate_pct: 'Rate %', service2_rate_type: '2nd rate type', service2_rate_pct: '2nd rate %',
+    reorder_level: 'Reorder level', consultant_pct: 'Consultant %', service_staff_pct: 'Beautician %', product_seller_pct: 'Product seller %',
+    big_discount_pct: 'Big discount %', large_sale_rm: 'Large sale RM',
+  };
+  const ACTIONS = {
+    'create': 'Created', 'edit': 'Edited', 'delete': 'Deleted', 'status change': 'Status changed',
+    'approve change': 'Approved manager change', 'reject change': 'Rejected manager change',
+    'role change': 'User changed', 'settings change': 'Settings changed', 'stock transfer': 'Stock moved',
+    'stock count': 'Stock counted', 'stock count mismatch': "Stock count didn't tally",
+    'reorder level change': 'Reorder level changed',
+  };
+  const TABLES = { sales: 'Sale', stock: 'Stock', settings: 'Settings', profiles: 'User', ai_briefs: 'AI brief' };
+
+  const show = (k, v) => {
+    if (v === null || v === undefined || v === '') return '—';
+    if (/_id$/.test(k) && names.has(v)) return names.get(v);
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (typeof v === 'object') return JSON.stringify(v);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return App.date(v);
+    return String(v);
+  };
+  const change = (label, a, b) =>
+    `<li>${App.esc(label)}: <span class="before">${App.esc(a)}</span> → <span class="after">${App.esc(b)}</span></li>`;
+
+  // Before / after lists for any two values
+  function diff(before, after) {
+    const out = [];
+    if (Array.isArray(before) || Array.isArray(after)) {
+      const a = (before || []).map(x => typeof x === 'object' ? JSON.stringify(x) : String(x));
+      const b = (after || []).map(x => typeof x === 'object' ? JSON.stringify(x) : String(x));
+      b.filter(x => !a.includes(x)).forEach(x => out.push(`<li>Added: <span class="after">${App.esc(x)}</span></li>`));
+      a.filter(x => !b.includes(x)).forEach(x => out.push(`<li>Removed: <span class="before">${App.esc(x)}</span></li>`));
+      return out;
+    }
+    if (typeof before === 'object' || typeof after === 'object') {
+      const keys = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])];
+      keys.forEach(k => {
+        const a = (before || {})[k], b = (after || {})[k];
+        if (JSON.stringify(a) === JSON.stringify(b)) return;
+        if (a && b && typeof a === 'object' && typeof b === 'object') {
+          diff(a, b).forEach(li => out.push(li.replace('<li>', `<li>${App.esc(LABELS[k] || k)} · `)));
+        } else {
+          out.push(change(LABELS[k] || k, show(k, a), show(k, b)));
+        }
+      });
+      return out;
+    }
+    if (before !== after) out.push(change('Value', show('', before), show('', after)));
+    return out;
+  }
+
+  function details(l) {
+    const d = l.details || {};
+    switch (l.action) {
+      case 'edit': case 'reorder level change':
+        return (d.product ? `<li>Product: ${App.esc(d.product)}</li>` : '') + diff(d.before, d.after).join('');
+      case 'settings change':
+        return `<li>Setting: <strong>${App.esc(d.setting || l.record_id)}</strong></li>` +
+          (d.before == null ? '<li>First saved</li>' : diff(d.before, d.after).join(''));
+      case 'role change': {
+        const out = [`<li>${App.esc(d.email || '')}</li>`];
+        if (d.old_role !== d.new_role) out.push(change('Role', d.old_role, d.new_role));
+        if (d.old_outlet !== d.new_outlet) out.push(change('Outlet', show('', d.old_outlet), show('', d.new_outlet)));
+        if (d.old_active !== d.new_active) out.push(change('Active', show('', d.old_active), show('', d.new_active)));
+        return out.join('');
+      }
+      case 'status change':
+        return change('Status', d.from, d.to) + (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '') +
+          (d.proposed && d.to === 'Pending approval' ? '<li>Waiting for owner approval</li>' : '');
+      case 'approve change': case 'reject change':
+        return (d.reason ? `<li>Reason: ${App.esc(d.reason)}</li>` : '');
+      case 'stock transfer':
+        return `<li>${App.esc(d.product)}: ${d.qty} from ${App.esc(d.from)} → ${App.esc(d.to)}</li>`;
+      case 'stock count': case 'stock count mismatch':
+        return `<li>${App.esc(d.product)}: system had ${d.expected}, counted ${d.counted}</li>`;
+      case 'create': case 'delete': {
+        if (l.table_name === 'sales')
+          return `<li>${App.esc(d.customer || d.customer_name || '')}${d.total != null ? ' · ' + App.rm(d.total) : ''}` +
+                 `${d.status ? ' · ' + App.esc(d.status) : ''}</li>`;
+        if (l.table_name === 'stock') return `<li>${App.esc(d.product)} at ${App.esc(d.location)}: ${d.quantity} in stock</li>`;
+        return '';
+      }
+      default:
+        return Object.entries(d).map(([k, v]) => `<li>${App.esc(LABELS[k] || k)}: ${App.esc(show(k, v))}</li>`).join('');
+    }
+  }
+
+  (async () => {
+    await App.requireRole(['owner']);
+    $('ownerTabs').innerHTML = App.ownerTabs('history.html');
+    const today = App.todayKL();
+    $('to').value = today;
+    const d30 = new Date(today + 'T00:00:00Z'); d30.setUTCDate(d30.getUTCDate() - 30);
+    $('from').value = d30.toISOString().slice(0, 10);
+    ['from', 'to', 'kind'].forEach(id => $(id).addEventListener('change', load));
+    $('search').addEventListener('input', render);
+    try {
+      const p = await App.fetchAll(() => sb.from('profiles').select('id, full_name, email'));
+      p.forEach(x => names.set(x.id, x.full_name || x.email));
+    } catch (err) { /* names are optional */ }
+    load();
+  })();
+
+  async function load() {
+    App.showMsg($('pageMsg'), '');
+    if (!$('from').value || !$('to').value) return;
+    try {
+      logs = await App.fetchAll(() => {
+        let q = sb.from('audit_log').select('id, who, who_email, at, action, table_name, record_id, outlet, details')
+          .gte('at', $('from').value + 'T00:00:00+08:00').lte('at', $('to').value + 'T23:59:59+08:00')
+          .order('at', { ascending: false }).order('id', { ascending: false });
+        if ($('kind').value) q = q.eq('table_name', $('kind').value);
+        return q;
+      });
+      render();
+    } catch (err) {
+      App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
+    }
+  }
+
+  function render() {
+    const q = $('search').value.trim().toLowerCase();
+    const list = logs.filter(l => !q || JSON.stringify([l.who_email, l.outlet, l.action, l.details, names.get(l.who)]).toLowerCase().includes(q));
+    if (!list.length) { $('list').innerHTML = '<p class="empty">Nothing recorded for these filters.</p>'; return; }
+    $('list').innerHTML = `<p class="muted" style="margin:0 0 4px">${list.length} entr${list.length === 1 ? 'y' : 'ies'}</p>` +
+      list.map(l => `
+        <div class="log">
+          <div class="log-head">
+            <div><strong>${App.esc(ACTIONS[l.action] || l.action)}</strong>
+              <span class="muted">· ${App.esc(TABLES[l.table_name] || l.table_name || '')}${l.outlet ? ' · ' + App.esc(l.outlet) : ''}</span></div>
+            <span class="muted">${App.dateTime(l.at)}</span>
+          </div>
+          <div class="muted" style="font-size:.88rem">By ${App.esc(names.get(l.who) || l.who_email || 'System / SQL Editor')}</div>
+          <ul class="chg">${details(l)}</ul>
+        </div>`).join('');
+  }
+</script>
+</body>
+</html>

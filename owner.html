@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Owner Dashboard · Zenvique System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <a href="index.html" class="link">← Home</a>
+        <h1 style="margin:4px 0 0">Owner Dashboard</h1>
+        <span class="muted" id="subtitle"></span>
+      </div>
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div id="ownerTabs"></div>
+
+    <div class="filters card" style="padding:14px">
+      <div>
+        <label for="period">Period</label>
+        <select id="period">
+          <option value="month">Month</option>
+          <option value="quarter">Quarter</option>
+          <option value="year">Year</option>
+        </select>
+      </div>
+      <div>
+        <label for="month">Month</label>
+        <input id="month" type="month">
+      </div>
+    </div>
+
+    <div id="pageMsg" class="msg"></div>
+    <div id="alerts" class="card alerts hidden section"></div>
+
+    <div class="kpis section">
+      <div class="kpi"><div class="label">All Outlets Total Sales</div><div class="value" id="kTotal">–</div><div class="small" id="kTotalVs"></div></div>
+      <div class="kpi">
+        <div class="label">Target vs Actual</div>
+        <div class="value" id="kPct">–</div>
+        <div class="bar"><div id="kBar" style="width:0"></div></div>
+        <div class="small" id="kTarget"></div>
+      </div>
+      <div class="kpi"><div class="label">Sales Volume</div><div class="value" id="kVol">–</div><div class="small">paid transactions</div></div>
+      <div class="kpi"><div class="label">Treatment Sales</div><div class="value" id="kTrt">–</div><div class="small">personal sales, after discount</div></div>
+      <div class="kpi"><div class="label">Product Sales</div><div class="value" id="kProd">–</div></div>
+    </div>
+    <div class="kpis section">
+      <div class="kpi minor"><div class="label">Service Done</div><div class="value" id="kSvc">–</div><div class="small" id="kSvcN"></div></div>
+      <div class="kpi minor"><div class="label">Total Commission</div><div class="value" id="kComm">–</div><div class="small">all staff</div></div>
+      <div class="kpi minor"><div class="label">New Customers</div><div class="value" id="kNew">–</div><div class="small">first visit to an outlet</div></div>
+      <div class="kpi minor"><div class="label">Low Stock Items</div><div class="value" id="kLow">–</div><div class="small">HQ + all outlets</div></div>
+    </div>
+
+    <div class="card section">
+      <h2>Outlet comparison</h2>
+      <div class="tablewrap" id="tblOutlets"></div>
+    </div>
+
+    <div class="card section">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h2 style="margin:0">Sales trend</h2>
+        <select id="trendMode" style="width:auto">
+          <option value="month">Monthly (12 months)</option>
+          <option value="quarter">Quarterly (8 quarters)</option>
+          <option value="year">Yearly (3 years)</option>
+        </select>
+      </div>
+      <div class="chartbox" style="margin-top:10px"><canvas id="trend"></canvas></div>
+    </div>
+
+    <div class="card section">
+      <h2>Staff performance</h2>
+      <div class="tablewrap" id="tblStaff"></div>
+    </div>
+
+    <div class="card section">
+      <h2>Stock inventory (all locations)</h2>
+      <div class="tablewrap" id="tblStock"></div>
+    </div>
+
+    <div class="cols">
+      <div class="card section"><h2>Lead source</h2><div class="tablewrap" id="tblLead"></div></div>
+      <div class="card section"><h2>Referral source</h2><div class="tablewrap" id="tblRef"></div></div>
+      <div class="card section"><h2>Voucher usage</h2><div class="tablewrap" id="tblVoucher"></div></div>
+      <div class="card section"><h2>New customers by outlet</h2><div class="tablewrap" id="tblNew"></div></div>
+    </div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let settings = {}, chart = null, cache = null;
+
+  $('logoutBtn').addEventListener('click', () => App.logout());
+
+  const SALE_COLS = 'id, sale_date, outlet, customer_name, phone, consultant_id, service_staff_id, service_staff2_id, ' +
+    'product_seller_id, treatment, product, product_qty, service, treatment_amount, product_amount, service_amount, ' +
+    'discount, total_sale, voucher_used, voucher_code, referred_by, lead_source, status';
+
+  // Period → [first month, last month]
+  function periodMonths(mode, month) {
+    const [y, m] = month.split('-').map(Number);
+    if (mode === 'quarter') { const q0 = Math.floor((m - 1) / 3) * 3 + 1; const s = `${y}-${String(q0).padStart(2, '0')}`; return [s, App.addMonths(s, 2)]; }
+    if (mode === 'year') return [`${y}-01`, `${y}-12`];
+    return [month, month];
+  }
+  function periodLabel(mode, a, b) {
+    if (mode === 'quarter') return `Q${Math.floor((Number(a.slice(5)) - 1) / 3) + 1} ${a.slice(0, 4)}`;
+    if (mode === 'year') return a.slice(0, 4);
+    return App.monthLabel(a);
+  }
+  const monthsBetween = (a, b) => { const out = []; for (let m = a; m <= b; m = App.addMonths(m, 1)) out.push(m); return out; };
+  const sum = (list, fn) => list.reduce((x, s) => x + fn(s), 0);
+
+  function table(el, headers, rows, emptyText) {
+    if (!rows.length) { el.innerHTML = `<p class="empty">${emptyText || 'Nothing for this period.'}</p>`; return; }
+    el.innerHTML = `<table><thead><tr>${headers.map(h => `<th class="${h.num ? 'num' : ''}">${App.esc(h.t)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${headers[i].num ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  function group(list, keyFn, rmFn) {
+    const m = new Map();
+    list.forEach(s => { const k = keyFn(s); if (!k) return; const g = m.get(k) || { key: k, n: 0, rm: 0 }; g.n++; g.rm += rmFn(s); m.set(k, g); });
+    return [...m.values()].sort((a, b) => b.rm - a.rm || b.n - a.n);
+  }
+
+  (async () => {
+    await App.requireRole(['owner']);
+    $('ownerTabs').innerHTML = App.ownerTabs('owner.html');
+    $('month').value = App.ym(App.todayKL());
+    $('month').max = App.ym(App.todayKL());
+    ['period', 'month'].forEach(id => $(id).addEventListener('change', load));
+    $('trendMode').addEventListener('change', () => cache && drawTrend());
+    try {
+      const { data, error } = await sb.from('settings').select('key, value').in('key', ['outlets', 'sales_targets', 'hq']);
+      if (error) throw error;
+      (data || []).forEach(r => settings[r.key] = r.value);
+    } catch (err) { return App.showMsg($('pageMsg'), App.friendlyError(err), 'error'); }
+    load();
+  })();
+
+  async function load() {
+    const mode = $('period').value;
+    const [mA, mB] = periodMonths(mode, $('month').value || App.ym(App.todayKL()));
+    const from = mA + '-01', to = App.monthEnd(mB);
+    $('subtitle').textContent = 'All outlets · ' + periodLabel(mode, mA, mB);
+    App.showMsg($('pageMsg'), 'Loading…', 'info');
+    try {
+      const [hist, stock, comm, profiles] = await Promise.all([
+        // Everything up to the end of the period (trend + new customers need history)
+        App.fetchAll(() => sb.from('sales').select(SALE_COLS).lte('sale_date', to).order('sale_date').order('id')),
+        App.fetchAll(() => sb.from('stock').select('location, product, quantity, reorder_level').order('product').order('location')),
+        App.fetchAll(() => sb.rpc('commission_lines', { p_from: from, p_to: to })),
+        App.fetchAll(() => sb.from('profiles').select('id, full_name, email, role, outlet, active').order('full_name')),
+      ]);
+      cache = { mode, mA, mB, from, to, hist, stock, comm, profiles };
+      App.showMsg($('pageMsg'), '');
+      render();
+    } catch (err) {
+      App.showMsg($('pageMsg'), App.friendlyError(err), 'error');
+    }
+  }
+
+  function render() {
+    const { mode, mA, mB, from, to, hist, stock, comm, profiles } = cache;
+    const outlets = settings.outlets || [];
+    const inRange = s => s.sale_date >= from && s.sale_date <= to;
+    const rows = hist.filter(inRange);
+    const paid = rows.filter(s => Number(s.total_sale) > 0);
+    const total = sum(paid, s => Number(s.total_sale));
+
+    // Previous period of the same length
+    const len = monthsBetween(mA, mB).length;
+    const pA = App.addMonths(mA, -len), pB = App.addMonths(mB, -len);
+    const prevTotal = sum(hist.filter(s => s.sale_date >= pA + '-01' && s.sale_date <= App.monthEnd(pB)), s => Number(s.total_sale));
+    $('kTotal').textContent = App.rm(total);
+    $('kTotalVs').textContent = prevTotal > 0
+      ? `${total >= prevTotal ? '▲' : '▼'} ${Math.abs((total - prevTotal) / prevTotal * 100).toFixed(1)}% vs ${periodLabel(mode, pA, pB)}`
+      : `${periodLabel(mode, pA, pB)}: ${App.rm(prevTotal)}`;
+
+    // Targets: add up each month's target per outlet
+    const targets = settings.sales_targets || {};
+    const months = monthsBetween(mA, mB);
+    const targetOf = o => sum(months, m => Number((targets[m] || {})[o] || 0));
+    const totalTarget = sum(outlets, targetOf);
+    if (totalTarget > 0) {
+      const pct = total / totalTarget * 100;
+      $('kPct').textContent = pct.toFixed(1) + '%';
+      $('kBar').style.width = Math.min(pct, 100) + '%';
+      $('kTarget').textContent = `Target ${App.rm(totalTarget)} · ${total >= totalTarget ? 'reached 🎉' : 'remaining ' + App.rm(totalTarget - total)}`;
+    } else {
+      $('kPct').textContent = '–'; $('kBar').style.width = '0';
+      $('kTarget').textContent = 'No targets set. Set them in the Settings tab.';
+    }
+
+    $('kVol').textContent = paid.length;
+    $('kTrt').textContent = App.rm(sum(paid, s => App.shares(s).trt));
+    $('kProd').textContent = App.rm(sum(paid, s => App.shares(s).prod));
+    const svc = rows.filter(s => Number(s.service_amount) > 0);
+    $('kSvc').textContent = App.rm(sum(svc, s => Number(s.service_amount)));
+    $('kSvcN').textContent = `${svc.length} sessions · not money paid`;
+    $('kComm').textContent = App.rm(sum(comm, c => Number(c.commission)));
+
+    // New customers = first ever visit to that outlet falls in the period
+    const first = new Map();
+    hist.forEach(s => { const k = s.outlet + '|' + App.custKey(s); if (App.custKey(s) && !first.has(k)) first.set(k, s); });
+    const newCust = [...first.values()].filter(inRange);
+    $('kNew').textContent = newCust.length;
+
+    // Stock + alerts
+    const low = stock.filter(s => s.quantity <= s.reorder_level);
+    $('kLow').textContent = low.length;
+    const review = rows.filter(s => s.status !== 'OK');
+    const alerts = low.map(s => `Low stock at <strong>${App.esc(s.location)}</strong>: ${App.esc(s.product)}, ${s.quantity} left (reorder at ${s.reorder_level})`);
+    if (review.length) alerts.push(`${review.length} sale${review.length === 1 ? '' : 's'} in this period ${review.length === 1 ? 'needs' : 'need'} review or approval`);
+    $('alerts').innerHTML = alerts.length ? `<strong>Alerts</strong><ul>${alerts.map(a => `<li>${a}</li>`).join('')}</ul>` : '';
+    $('alerts').classList.toggle('hidden', !alerts.length);
+
+    // Outlet comparison
+    const extra = [...new Set(rows.map(s => s.outlet))].filter(o => !outlets.includes(o));
+    const outletRows = [...outlets, ...extra].map(o => {
+      const r = rows.filter(s => s.outlet === o), p = r.filter(s => Number(s.total_sale) > 0);
+      const t = sum(p, s => Number(s.total_sale)), tg = targetOf(o);
+      return { o, t, tg, vol: p.length, trt: sum(p, s => App.shares(s).trt), prod: sum(p, s => App.shares(s).prod),
+               svc: sum(r, s => Number(s.service_amount)), nw: newCust.filter(s => s.outlet === o).length };
+    }).sort((a, b) => b.t - a.t);
+    table($('tblOutlets'),
+      [{ t: 'Outlet' }, { t: 'Sales', num: 1 }, { t: 'Target', num: 1 }, { t: 'Achieved', num: 1 }, { t: 'Volume', num: 1 },
+       { t: 'Treatment', num: 1 }, { t: 'Product', num: 1 }, { t: 'Service done', num: 1 }, { t: 'New cust.', num: 1 }],
+      outletRows.map(x => [`<a href="dashboard.html" class="link" data-outlet="${App.esc(x.o)}">${App.esc(x.o)}</a>`,
+        App.rm(x.t), x.tg ? App.rm(x.tg) : '–', x.tg ? (x.t / x.tg * 100).toFixed(1) + '%' : '–', x.vol,
+        App.rm(x.trt), App.rm(x.prod), App.rm(x.svc), x.nw]));
+
+    // Staff performance (sales they were named on + their commission)
+    const names = new Map(profiles.map(p => [p.id, p]));
+    const staff = new Map();
+    const bump = (id, f) => { if (!id) return; const g = staff.get(id) || { id, trt: 0, prod: 0, svc: 0, svcN: 0, comm: 0, n: 0 }; f(g); staff.set(id, g); };
+    paid.forEach(s => {
+      bump(s.consultant_id, g => { g.trt += App.shares(s).trt; g.n++; });
+      bump(s.product_seller_id, g => { g.prod += App.shares(s).prod; });
+    });
+    rows.filter(s => Number(s.service_amount) > 0).forEach(s => {
+      bump(s.service_staff_id, g => { g.svc += Number(s.service_amount); g.svcN++; });
+      bump(s.service_staff2_id, g => { g.svc += Number(s.service_amount); g.svcN++; });
+    });
+    comm.forEach(c => bump(c.staff_id, g => { g.comm += Number(c.commission); }));
+    table($('tblStaff'),
+      [{ t: 'Staff' }, { t: 'Outlet' }, { t: 'Personal sales', num: 1 }, { t: 'Product sold', num: 1 },
+       { t: 'Services done', num: 1 }, { t: 'Commission', num: 1 }],
+      [...staff.values()].sort((a, b) => (b.trt + b.prod) - (a.trt + a.prod)).map(g => {
+        const p = names.get(g.id) || {};
+        return [App.esc(p.full_name || p.email || 'Unknown'), App.esc(p.outlet || '–'),
+          `${App.rm(g.trt)} <span class="muted">(${g.n})</span>`, App.rm(g.prod),
+          `${App.rm(g.svc)} <span class="muted">(${g.svcN})</span>`, App.rm(g.comm)];
+      }), 'No staff activity in this period.');
+
+    // Stock matrix: product × location
+    const hq = (settings.hq || {}).name || 'HQ';
+    const locs = [hq, ...outlets.filter(o => o !== hq)];
+    stock.forEach(s => { if (!locs.includes(s.location)) locs.push(s.location); });
+    const products = [...new Set(stock.map(s => s.product))];
+    const cell = (p, l) => { const s = stock.find(x => x.product === p && x.location === l); if (!s) return '–';
+      return s.quantity <= s.reorder_level ? `<span class="low">${s.quantity}</span>` : s.quantity; };
+    table($('tblStock'), [{ t: 'Product' }, ...locs.map(l => ({ t: l, num: 1 })), { t: 'Total', num: 1 }],
+      products.map(p => [App.esc(p), ...locs.map(l => cell(p, l)), sum(stock.filter(s => s.product === p), s => s.quantity)]),
+      'No stock items yet.');
+
+    // Lead / referral / voucher / new customers
+    table($('tblLead'), [{ t: 'Lead source' }, { t: 'Customers', num: 1 }, { t: 'Sales', num: 1 }],
+      group(paid, s => s.lead_source || '(not filled in)', s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, App.rm(g.rm)]));
+    table($('tblRef'), [{ t: 'Referred by' }, { t: 'Customers', num: 1 }, { t: 'Sales', num: 1 }],
+      group(paid, s => (s.referred_by || '').trim(), s => Number(s.total_sale)).map(g => [App.esc(g.key), g.n, App.rm(g.rm)]),
+      'No referrals in this period.');
+    table($('tblVoucher'), [{ t: 'Voucher type / code' }, { t: 'Used', num: 1 }, { t: 'Sales', num: 1 }],
+      group(rows.filter(s => s.voucher_used), s => (s.voucher_code || '').trim() || '(no code)', s => Number(s.total_sale))
+        .map(g => [App.esc(g.key), g.n, App.rm(g.rm)]), 'No vouchers used in this period.');
+    table($('tblNew'), [{ t: 'Outlet' }, { t: 'New customers', num: 1 }],
+      outletRows.filter(x => x.nw).map(x => [App.esc(x.o), x.nw]), 'No new customers in this period.');
+
+    // Outlet links open the Manager view for that outlet
+    document.querySelectorAll('#tblOutlets a[data-outlet]').forEach(a => a.addEventListener('click', () => {
+      try { sessionStorage.setItem('zv_outlet', a.dataset.outlet); } catch {}
+    }));
+
+    drawTrend();
+  }
+
+  function drawTrend() {
+    if (!window.Chart || !cache) return;
+    const { hist, mB } = cache;
+    const tm = $('trendMode').value;
+    let buckets;
+    if (tm === 'year') {
+      const y = Number(mB.slice(0, 4));
+      buckets = [y - 2, y - 1, y].map(v => ({ label: String(v), a: `${v}-01-01`, b: `${v}-12-31` }));
+    } else if (tm === 'quarter') {
+      const q0 = periodMonths('quarter', mB)[0];
+      buckets = [...Array(8)].map((_, i) => { const a = App.addMonths(q0, (i - 7) * 3);
+        return { label: periodLabel('quarter', a), a: a + '-01', b: App.monthEnd(App.addMonths(a, 2)) }; });
+    } else {
+      buckets = [...Array(12)].map((_, i) => { const m = App.addMonths(mB, i - 11);
+        return { label: App.monthLabel(m), a: m + '-01', b: App.monthEnd(m) }; });
+    }
+    const values = buckets.map(k => sum(hist.filter(s => s.sale_date >= k.a && s.sale_date <= k.b), s => Number(s.total_sale)));
+    if (chart) chart.destroy();
+    chart = new Chart($('trend'), {
+      type: 'bar',
+      data: { labels: buckets.map(k => k.label), datasets: [{ label: 'Sales (RM)', data: values, backgroundColor: '#0f766e', borderRadius: 6 }] },
+      options: { maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => App.rm(c.parsed.y) } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString('en-MY') } } } },
+    });
+  }
+</script>
+</body>
+</html>
