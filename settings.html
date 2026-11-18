@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="i18n.js"></script>
   <style>
     .rowform { display: grid; gap: 8px; grid-template-columns: 1fr 140px auto; align-items: center; margin-top: 6px; }
     .rowform.rate { grid-template-columns: 1fr 120px auto; }
@@ -85,7 +86,7 @@
     <!-- 4. Reorder levels -->
     <div class="card section">
       <h2>Reorder levels</h2>
-      <p class="muted" style="margin:0">An item shows as <span class="low">Low stock</span> when its quantity is at or below its reorder level.</p>
+      <p class="muted" style="margin:0" data-i18n-html="settings.reorderIntro">An item shows as <span class="low">Low stock</span> when its quantity is at or below its reorder level.</p>
       <label for="rLoc">Location</label>
       <select id="rLoc" style="max-width:260px"></select>
       <div class="tablewrap" id="rTable" style="margin-top:10px"></div>
@@ -108,7 +109,7 @@
     <!-- Colour rules -->
     <div class="card section">
       <h2>Colour rules &amp; alerts</h2>
-      <p class="muted" style="margin:0"><strong style="color:#b91c1c">Red</strong> = Act now ·
+      <p class="muted" style="margin:0" data-i18n-html="settings.colourIntro"><strong style="color:#b91c1c">Red</strong> = Act now ·
         <strong style="color:#b45309">Amber</strong> = Watch. Leave a box empty to switch that rule off.</p>
       <div class="grid2">
         <div><label for="crCrit">Red: critical low stock at or below (% of reorder level)</label><input id="crCrit" type="number" min="0" max="100" step="1"></div>

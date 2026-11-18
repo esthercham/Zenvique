@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="i18n.js"></script>
   <style>
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
     .card-head h2 { margin: 0; }
@@ -73,7 +74,7 @@
     <!-- AI Morning Brief -->
     <div class="card section" id="briefCard">
       <h2>AI Morning Brief</h2>
-      <p class="muted" style="margin:0">
+      <p class="muted" style="margin:0" data-i18n-html="dash.briefIntro">
         Builds a question for Claude from <strong>only the records shown on this page</strong> with your current filters,
         plus today's date, this outlet and the rules in Settings. Customer phone numbers are never included.
         You run it in Claude, check the answer, then save it here.
@@ -318,7 +319,7 @@
     table($('tblStock'), [{ t: 'Product' }, { t: 'In stock', num: 1 }, { t: 'Reorder at', num: 1 }, { t: 'Issue' }, { t: '' }],
       stock.map(s => [App.esc(s.product), s.quantity, s.reorder_level,
         pill(s.issue_status) + (s.proposed_issue_status ? ` <span class="muted">→ ${App.esc(s.proposed_issue_status)} (waiting)</span>` : '') +
-          (s.issue_note ? `<div class="muted" style="font-size:.8rem">${App.esc(s.issue_note)}</div>` : ''),
+          (s.issue_note ? `<div class="muted" style="font-size:.8rem" data-no-i18n>${App.esc(s.issue_note)}</div>` : ''),
         `<button type="button" class="small ghost" data-stock="${s.id}">Update</button>`]),
       'No stock items for this outlet yet.', stock.map(s => App.rowClass(data.levels, s.id)));
     document.querySelectorAll('[data-stock]').forEach(b => b.addEventListener('click', () => editStock(b.dataset.stock)));
@@ -508,7 +509,7 @@
         `${f.sales_search ? ' · sales "' + App.esc(f.sales_search) + '"' : ''}${f.customer_search ? ' · customers "' + App.esc(f.customer_search) + '"' : ''}` +
         ` · ${r.sales ?? 0} sales, ${r.stock ?? 0} stock, ${r.customers ?? 0} customers, ${r.alerts ?? 0} alerts` +
         `${b.updated_at ? ' · edited by owner ' + App.dateTime(b.updated_at) : ''}</div>
-        <div class="brief-text">${App.esc(b.brief)}</div>
+        <div class="brief-text" data-no-i18n>${App.esc(b.brief)}</div>
         <div style="display:flex;gap:8px;margin-top:6px">
           <button type="button" class="link" data-more>Show all</button>
           ${me.role === 'owner' ? '<button type="button" class="link" data-edit>Edit (owner)</button>' : ''}

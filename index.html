@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="i18n.js"></script>
 </head>
 <body>
 
@@ -17,6 +18,7 @@
   <!-- Logged out: log in / create account / forgot password -->
   <div id="authView" class="center hidden">
     <div class="card narrow">
+      <div class="lang-corner" data-lang-toggle></div>
       <p class="brand">Zenvique System</p>
       <p class="sub">Sales, commission &amp; stock</p>
 
@@ -66,6 +68,7 @@
   <!-- Setting a new password (after clicking the email link) -->
   <div id="resetView" class="center hidden">
     <div class="card narrow">
+      <div class="lang-corner" data-lang-toggle></div>
       <p class="brand">Set a new password</p>
       <form id="resetForm">
         <label for="newPassword">New password <span class="muted">(at least 6 characters)</span></label>

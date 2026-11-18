@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="i18n.js"></script>
   <style>
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
     .toolbar input { flex: 1 1 220px; }
@@ -44,7 +45,7 @@
 
     <div class="card" style="margin-bottom:16px">
       <h2 style="margin:0 0 4px;font-size:1.1rem">Add user</h2>
-      <p class="muted" style="margin:0">
+      <p class="muted" style="margin:0" data-i18n-html="users.addIntro">
         Send the new person this link. They click <strong>Create account</strong>, confirm their email,
         and then appear in the list below as Staff. Then set their role and outlet here.
       </p>
@@ -57,7 +58,7 @@
     </div>
 
     <div class="card">
-      <p class="muted" style="margin:0">
+      <p class="muted" style="margin:0" data-i18n-html="users.listIntro">
         Set each person's role and outlet. Staff and managers need an outlet before they can record sales.
         Switch someone <strong>off</strong> when they leave. They won't be able to see anything, but their past sales stay.
       </p>
@@ -155,7 +156,7 @@
           <div class="fields">
             <div><label>Role</label><select class="f-role" ${isMe ? 'disabled' : ''}>${roleOpts}</select></div>
             <div><label>Outlet</label><select class="f-outlet">${outletOpts}</select></div>
-            <label class="switch"><input type="checkbox" class="f-active" ${p.active ? 'checked' : ''} ${isMe ? 'disabled' : ''}> Active</label>
+            <label class="switch"><input type="checkbox" class="f-active" ${p.active ? 'checked' : ''} ${isMe ? 'disabled' : ''}> <span data-i18n-html="users.active">Active</span></label>
             <button type="button" class="f-save">Save</button>
           </div>
           <div class="msg"></div>

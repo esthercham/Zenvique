@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="i18n.js"></script>
   <style>
     fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 16px; margin: 16px 0 0; }
     legend { font-weight: 700; padding: 0 6px; }
@@ -44,7 +45,7 @@
     <div id="blocked" class="card hidden"></div>
 
     <form id="saleForm" class="card hidden" novalidate>
-      <p class="muted" style="margin:0">
+      <p class="muted" style="margin:0" data-i18n-html="sale.intro">
         Fill in <strong>Paid today</strong>, <strong>Service done today</strong>, or both.
         For a package session with no payment, just fill in Service done today.
         Fields with <span style="color:var(--danger)">*</span> are required.

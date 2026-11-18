@@ -149,3 +149,11 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.35); }
 .pill.Pending { background: var(--info-bg); color: var(--info); }
 .pill.Cancelled, .pill.Refunded { background: var(--red-bg); color: var(--red); }
 .link:hover { background: none; text-decoration: underline; }
+/* Language switch: EN | 中文 (top-right) */
+.topbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.lang-toggle { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 2px; font-size: .85rem; }
+.lang-toggle button { background: transparent; color: var(--muted); padding: 6px 10px; border-radius: 6px; font-weight: 600; }
+.lang-toggle button:hover { background: var(--bg); }
+.lang-toggle button.active { background: var(--brand); color: #fff; }
+.lang-toggle .sep { color: var(--line); padding: 0 1px; }
+.lang-corner { display: flex; justify-content: flex-end; margin: -8px -8px 6px 0; }
